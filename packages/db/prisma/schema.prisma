@@ -37,13 +37,15 @@ model User {
 }
 
 model UserTenant {
-  id         String       @id @default(uuid())
-  userId     String
-  tenantId   String
-  role       TenantRole
-  status     InviteStatus @default(PENDING)
-  invitedAt  DateTime     @default(now())
-  acceptedAt DateTime?
+  id                   String       @id @default(uuid())
+  userId               String
+  tenantId             String
+  role                 TenantRole
+  status               InviteStatus @default(PENDING)
+  invitedAt            DateTime     @default(now())
+  acceptedAt           DateTime?
+  invitationToken      String?      @unique
+  invitationExpiresAt  DateTime?
 
   user   User   @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])

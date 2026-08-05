@@ -1,14 +1,17 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TenantGuard } from './tenant.guard';
+import { TenantContext } from '../../prisma/tenant-context';
 
 describe('TenantGuard', () => {
   let guard: TenantGuard;
   let reflector: Reflector;
+  let tenantContext: TenantContext;
 
   beforeEach(() => {
     reflector = new Reflector();
-    guard = new TenantGuard(reflector);
+    tenantContext = new TenantContext();
+    guard = new TenantGuard(reflector, tenantContext);
   });
 
   function createMockContext(user: any, isPublic = false): ExecutionContext {
@@ -45,18 +48,20 @@ describe('TenantGuard', () => {
     it('should throw UnauthorizedException when user is undefined', () => {
       const context = createMockContext(undefined);
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Missing tenant context');
     });
 
     it('should throw UnauthorizedException when user is null', () => {
       const context = createMockContext(null);
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Missing tenant context');
     });
   });
 
   describe('non-admin users', () => {
     it('should set request.tenantId when user has a valid tenantId', () => {
       const user = {
-        sub: 'user-1',
+        userId: 'user-1',
         email: 'test@example.com',
         tenantId: 'tenant-123',
         globalRole: 'SELLER',
@@ -73,7 +78,7 @@ describe('TenantGuard', () => {
 
     it('should throw UnauthorizedException when tenantId is missing', () => {
       const user = {
-        sub: 'user-1',
+        userId: 'user-1',
         email: 'test@example.com',
         tenantId: undefined,
         globalRole: 'SELLER',
@@ -81,11 +86,12 @@ describe('TenantGuard', () => {
       };
       const context = createMockContext(user);
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Missing tenant context');
     });
 
     it('should throw UnauthorizedException when tenantId is empty string', () => {
       const user = {
-        sub: 'user-1',
+        userId: 'user-1',
         email: 'test@example.com',
         tenantId: '',
         globalRole: 'SELLER',
@@ -93,11 +99,12 @@ describe('TenantGuard', () => {
       };
       const context = createMockContext(user);
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Missing tenant context');
     });
 
     it('should throw UnauthorizedException when tenantId is null', () => {
       const user = {
-        sub: 'user-1',
+        userId: 'user-1',
         email: 'test@example.com',
         tenantId: null,
         globalRole: 'SELLER',
@@ -105,13 +112,14 @@ describe('TenantGuard', () => {
       };
       const context = createMockContext(user);
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow('Missing tenant context');
     });
   });
 
   describe('admin users', () => {
     it('should allow access and set isTenantBypassed=true for Admin role', () => {
       const user = {
-        sub: 'admin-1',
+        userId: 'admin-1',
         email: 'admin@example.com',
         tenantId: 'tenant-admin',
         globalRole: 'ADMIN',
@@ -128,7 +136,7 @@ describe('TenantGuard', () => {
 
     it('should allow Admin access even without tenantId (cross-tenant)', () => {
       const user = {
-        sub: 'admin-1',
+        userId: 'admin-1',
         email: 'admin@example.com',
         tenantId: undefined,
         globalRole: 'ADMIN',
@@ -145,7 +153,7 @@ describe('TenantGuard', () => {
 
     it('should set tenantId to null when Admin has no tenantId', () => {
       const user = {
-        sub: 'admin-1',
+        userId: 'admin-1',
         email: 'admin@example.com',
         globalRole: 'ADMIN',
       };
@@ -159,10 +167,19 @@ describe('TenantGuard', () => {
     });
   });
 
+  describe('tenant context integration', () => {
+    it('should have TenantContext injected', () => {
+      // Verify the guard has access to TenantContext for downstream use
+      expect(guard).toBeDefined();
+      expect(tenantContext).toBeDefined();
+      expect(tenantContext.getTenantId()).toBeUndefined();
+    });
+  });
+
   describe('various roles', () => {
     it('should enforce tenantId for ACCOUNTING_MANAGER role', () => {
       const user = {
-        sub: 'user-2',
+        userId: 'user-2',
         email: 'accountant@example.com',
         tenantId: 'tenant-456',
         globalRole: 'SELLER',
@@ -179,7 +196,7 @@ describe('TenantGuard', () => {
 
     it('should enforce tenantId for ACCOUNTING_VIEWER role', () => {
       const user = {
-        sub: 'user-3',
+        userId: 'user-3',
         email: 'viewer@example.com',
         tenantId: 'tenant-789',
         globalRole: 'SELLER',

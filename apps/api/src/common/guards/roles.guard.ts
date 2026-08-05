@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { TenantRole } from '@compras-hub/shared';
+import { GlobalRole, TenantRole } from '@compras-hub/shared';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
     );
 
-    // If no roles are specified, allow access
+    // If no roles are specified, allow access (no role restriction)
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
@@ -26,7 +26,16 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || !user.tenantRole) {
+    if (!user) {
+      throw new ForbiddenException('Forbidden');
+    }
+
+    // Admin users bypass role checks
+    if (user.globalRole === GlobalRole.ADMIN) {
+      return true;
+    }
+
+    if (!user.tenantRole) {
       throw new ForbiddenException('Forbidden');
     }
 

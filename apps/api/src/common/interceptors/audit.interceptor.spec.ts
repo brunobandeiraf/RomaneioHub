@@ -1,9 +1,7 @@
 import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Prisma } from '@compras-hub/db';
 import { of } from 'rxjs';
 import { AuditInterceptor } from './audit.interceptor';
-import { AUDITABLE_KEY } from '../decorators/auditable.decorator';
 
 describe('AuditInterceptor', () => {
   let interceptor: AuditInterceptor;
@@ -59,7 +57,7 @@ describe('AuditInterceptor', () => {
   }
 
   it('should skip auditing when @Auditable decorator is not present', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue(undefined);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
     const context = createMockExecutionContext({ method: 'POST' });
     const handler = createMockCallHandler({ id: 'new-1' });
@@ -71,7 +69,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should skip auditing for GET requests', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({ method: 'GET' });
     const handler = createMockCallHandler([]);
@@ -83,7 +81,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should write audit log for POST (CREATE) with entity id from response', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({
       method: 'POST',
@@ -103,7 +101,7 @@ describe('AuditInterceptor', () => {
             action: 'CREATE',
             entityType: 'Supplier',
             entityId: 'supplier-1',
-            changes: { razaoSocial: 'Test Corp', cnpj: '12345678000100' },
+            changes: { id: 'supplier-1', razaoSocial: 'Test Corp' },
           },
         });
         done();
@@ -112,7 +110,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should write audit log for PATCH (UPDATE) with partial body as changes', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Product');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Product');
 
     const context = createMockExecutionContext({
       method: 'PATCH',
@@ -141,7 +139,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should write audit log for PUT (UPDATE)', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Order');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Order');
 
     const context = createMockExecutionContext({
       method: 'PUT',
@@ -170,7 +168,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should write audit log for DELETE with entity id from route params', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({
       method: 'DELETE',
@@ -189,7 +187,7 @@ describe('AuditInterceptor', () => {
             action: 'DELETE',
             entityType: 'Supplier',
             entityId: 'supplier-77',
-            changes: Prisma.JsonNull,
+            changes: { deleted: true },
           },
         });
         done();
@@ -198,7 +196,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should not write audit log when userId is missing', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({
       method: 'POST',
@@ -216,7 +214,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should not write audit log when tenantId is missing', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({
       method: 'POST',
@@ -234,7 +232,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should not throw if audit log write fails', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
     mockPrismaService.auditLog.create.mockRejectedValue(new Error('DB error'));
 
     const context = createMockExecutionContext({
@@ -257,7 +255,7 @@ describe('AuditInterceptor', () => {
   });
 
   it('should use "unknown" as entityId when it cannot be extracted', (done) => {
-    jest.spyOn(reflector, 'get').mockReturnValue('Supplier');
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Supplier');
 
     const context = createMockExecutionContext({
       method: 'POST',
@@ -275,6 +273,34 @@ describe('AuditInterceptor', () => {
           expect.objectContaining({
             data: expect.objectContaining({
               entityId: 'unknown',
+              changes: { success: true },
+            }),
+          }),
+        );
+        done();
+      });
+    });
+  });
+
+  it('should resolve entityType from class-level decorator when handler has none', (done) => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue('Order');
+
+    const context = createMockExecutionContext({
+      method: 'POST',
+      body: { supplierId: 'sup-1' },
+      user: { sub: 'user-class' },
+      tenantId: 'tenant-class',
+    });
+    const handler = createMockCallHandler({ id: 'order-new' });
+
+    interceptor.intercept(context, handler).subscribe(() => {
+      setImmediate(() => {
+        expect(mockPrismaService.auditLog.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              entityType: 'Order',
+              action: 'CREATE',
+              entityId: 'order-new',
             }),
           }),
         );

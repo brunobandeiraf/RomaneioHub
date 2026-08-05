@@ -34,26 +34,26 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Define shared constants (max file size, allowed content types, status transitions)
     - _Requirements: 2.6, 4.5, 6.6_
 
-- [ ] 2. Implement backend core infrastructure (guards, middleware, filters)
+- [x] 2. Implement backend core infrastructure (guards, middleware, filters)
   - [x] 2.1 Implement PrismaService and tenant-scoped middleware
     - Create PrismaService extending PrismaClient with onModuleInit/onModuleDestroy
     - Implement Prisma middleware for automatic tenant_id injection on findMany, findFirst, create, update, delete
     - Use AsyncLocalStorage (CLS) to propagate tenantId from request context to Prisma middleware
     - _Requirements: 9.3, 9.5_
 
-  - [ ] 2.2 Implement TenantGuard for JWT tenant extraction
+  - [x] 2.2 Implement TenantGuard for JWT tenant extraction
     - Extract tenant_id from JWT claims, set on request context
     - Return 401 if JWT missing valid tenant_id claim
     - Bypass tenant filter for Admin role (cross-tenant read)
     - _Requirements: 9.2, 9.6, 9.7_
 
-  - [ ] 2.3 Implement RolesGuard with @Roles() decorator
+  - [x] 2.3 Implement RolesGuard with @Roles() decorator
     - Create @Roles() decorator to specify allowed roles per endpoint
     - Implement RolesGuard that checks user's TenantRole against required roles
     - Return 403 Forbidden without revealing resource details on unauthorized access
     - _Requirements: 1.7_
 
-  - [ ] 2.4 Implement SubscriptionGuard for write-blocking
+  - [x] 2.4 Implement SubscriptionGuard for write-blocking
     - Block POST/PATCH/PUT/DELETE when subscription status is PAST_DUE, GRACE_PERIOD, or BLOCKED
     - Allow all read (GET) operations for non-BLOCKED statuses
     - Block all operations (except login and CSV export) when BLOCKED
@@ -65,7 +65,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Return 400 with validation constraint list on DTO failures
     - _Requirements: 10.1_
 
-  - [ ] 2.6 Implement AuditInterceptor for automatic audit trail
+  - [x] 2.6 Implement AuditInterceptor for automatic audit trail
     - Create interceptor that writes AuditLog entries on create/update/delete operations
     - Capture userId, tenantId, action, entityType, entityId, and JSON diff of changes
     - Ensure AuditLog records are immutable (no update/delete endpoints)
@@ -87,7 +87,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - **Validates: Requirements 3.5, 14.2**
 
 - [ ] 3. Implement authentication module
-  - [ ] 3.1 Implement auth module with AWS Cognito integration
+  - [x] 3.1 Implement auth module with AWS Cognito integration
     - Create AuthModule with CognitoService wrapping AWS SDK Cognito Identity Provider
     - Implement register endpoint: create Cognito user + send confirmation email with 24h activation link
     - Implement confirm endpoint: verify activation link and activate account
@@ -144,7 +144,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Record audit trail fields
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
 
-  - [ ] 5.2 Implement product-supplier association endpoints
+  - [x] 5.2 Implement product-supplier association endpoints
     - Implement POST /products/:id/suppliers (associate supplier with price)
     - Implement PATCH /products/:id/suppliers/:supplierId (update price)
     - Implement DELETE /products/:id/suppliers/:supplierId (remove association)

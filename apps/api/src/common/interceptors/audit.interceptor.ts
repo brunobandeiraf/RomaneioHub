@@ -27,12 +27,12 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const entityType = this.reflector.get<string | undefined>(
+    const entityType = this.reflector.getAllAndOverride<string | undefined>(
       AUDITABLE_KEY,
-      context.getHandler(),
+      [context.getHandler(), context.getClass()],
     );
 
-    // Skip auditing if @Auditable decorator is not present
+    // Skip auditing if @Auditable decorator is not present on handler or controller
     if (!entityType) {
       return next.handle();
     }
@@ -56,7 +56,7 @@ export class AuditInterceptor implements NestInterceptor {
         }
 
         const entityId = this.extractEntityId(action, responseBody, request);
-        const changes = this.extractChanges(action, request);
+        const changes = this.extractChanges(action, responseBody, request);
 
         // Fire-and-forget: write audit log without blocking the response
         this.prisma.auditLog
@@ -116,22 +116,26 @@ export class AuditInterceptor implements NestInterceptor {
 
   private extractChanges(
     action: AuditAction,
+    responseBody: unknown,
     request: AuthenticatedRequest,
   ): Record<string, unknown> | null {
     switch (action) {
       case 'CREATE':
-        // Store the entire request body for CREATE
+        // Store the full created entity from response (or request body as fallback)
+        if (responseBody && typeof responseBody === 'object') {
+          return responseBody as Record<string, unknown>;
+        }
         return request.body && typeof request.body === 'object'
           ? (request.body as Record<string, unknown>)
           : null;
       case 'UPDATE':
-        // Store the partial body for UPDATE
+        // Store the changed fields from request body
         return request.body && typeof request.body === 'object'
           ? (request.body as Record<string, unknown>)
           : null;
       case 'DELETE':
-        // No changes payload for DELETE
-        return null;
+        // Mark as deleted
+        return { deleted: true };
       default:
         return null;
     }
