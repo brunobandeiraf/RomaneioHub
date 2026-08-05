@@ -204,7 +204,7 @@ export class AuthService {
       };
     } catch (error) {
       if (error instanceof CognitoInvalidCodeError || error instanceof CognitoExpiredCodeError) {
-        throw new BadRequestException('Verification code is invalid or expired');
+        throw new BadRequestException('Recovery code is invalid or expired');
       }
       throw error;
     }

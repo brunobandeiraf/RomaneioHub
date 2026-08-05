@@ -4,7 +4,11 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Enable rawBody so that Stripe webhook signature validation works.
+    // The raw body is available as req.rawBody on routes that need it.
+    rawBody: true,
+  });
 
   app.enableCors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',

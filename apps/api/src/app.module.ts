@@ -6,8 +6,11 @@ import { PrismaModule } from './prisma';
 import { JwtAuthGuard, TenantGuard, SubscriptionGuard } from './common/guards';
 import { TenantContextInterceptor } from './common/interceptors';
 import { AuthModule } from './modules/auth/auth.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { ProductsModule } from './modules/products/products.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -16,8 +19,11 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
     }),
     PrismaModule,
     AuthModule,
+    InvoicesModule,
+    OrdersModule,
     ProductsModule,
     SuppliersModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

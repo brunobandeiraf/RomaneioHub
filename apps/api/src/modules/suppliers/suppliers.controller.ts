@@ -22,8 +22,10 @@ export class SuppliersController {
 
   /**
    * List suppliers with pagination, optional search by razaoSocial/cnpj and active filter.
+   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get()
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
   async list(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -44,8 +46,10 @@ export class SuppliersController {
 
   /**
    * Get a single supplier by ID.
+   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get(':id')
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
   async findOne(@Param('id') id: string) {
     return this.suppliersService.findOne(id);
   }

@@ -27,8 +27,10 @@ export class ProductsController {
 
   /**
    * List products with pagination, search, category and active filters.
+   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get()
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
   async list(@Query() query: QueryProductDto) {
     const params: ListProductsParams = {
       page: query.page,
@@ -43,8 +45,10 @@ export class ProductsController {
 
   /**
    * Get product by ID with supplier associations and prices.
+   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get(':id')
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
   async findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }

@@ -252,25 +252,25 @@ describe('AuthService', () => {
       expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException with "Verification code is invalid or expired" for invalid code', async () => {
+    it('should throw BadRequestException with "Recovery code is invalid or expired" for invalid code', async () => {
       cognitoService.confirmForgotPassword.mockRejectedValue(
         new CognitoInvalidCodeError('Invalid code'),
       );
 
       await expect(service.resetPassword(resetDto)).rejects.toThrow(BadRequestException);
       await expect(service.resetPassword(resetDto)).rejects.toThrow(
-        'Verification code is invalid or expired',
+        'Recovery code is invalid or expired',
       );
     });
 
-    it('should throw BadRequestException with "Verification code is invalid or expired" for expired code', async () => {
+    it('should throw BadRequestException with "Recovery code is invalid or expired" for expired code', async () => {
       cognitoService.confirmForgotPassword.mockRejectedValue(
         new CognitoExpiredCodeError('Expired code'),
       );
 
       await expect(service.resetPassword(resetDto)).rejects.toThrow(BadRequestException);
       await expect(service.resetPassword(resetDto)).rejects.toThrow(
-        'Verification code is invalid or expired',
+        'Recovery code is invalid or expired',
       );
     });
   });

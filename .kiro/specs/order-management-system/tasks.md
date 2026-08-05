@@ -86,7 +86,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - While a tenant's subscription status is GRACE_PERIOD or BLOCKED, all write operations return an error response, but read operations succeed
     - **Validates: Requirements 3.5, 14.2**
 
-- [ ] 3. Implement authentication module
+- [x] 3. Implement authentication module
   - [x] 3.1 Implement auth module with AWS Cognito integration
     - Create AuthModule with CognitoService wrapping AWS SDK Cognito Identity Provider
     - Implement register endpoint: create Cognito user + send confirmation email with 24h activation link
@@ -94,13 +94,13 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Implement login endpoint: authenticate and return JWT (access 1h, refresh 30d) with tenant_id and role claims
     - _Requirements: 2.2, 2.5_
 
-  - [ ] 3.2 Implement password recovery flow
+  - [x] 3.2 Implement password recovery flow
     - Implement forgot-password endpoint: send 6-digit code valid for 15 minutes
     - Implement reset-password endpoint: validate code and enforce strong password policy
     - Return appropriate error for invalid/expired codes
     - _Requirements: 2.3, 2.8_
 
-  - [ ] 3.3 Implement invitation flow for accountants
+  - [x] 3.3 Implement invitation flow for accountants
     - Implement invite endpoint: Seller sends invitation with role (Accounting_Manager or Accounting_Viewer)
     - Send email with single-use link valid for 48 hours
     - Implement accept-invite endpoint: create UserTenant association with specified role
@@ -114,8 +114,8 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Test invitation link expiration handling
     - _Requirements: 2.6, 2.7, 2.8, 2.9_
 
-- [ ] 4. Implement suppliers module
-  - [ ] 4.1 Implement suppliers CRUD endpoints
+- [x] 4. Implement suppliers module
+  - [x] 4.1 Implement suppliers CRUD endpoints
     - Create SuppliersModule with controller, service, and DTOs
     - Implement GET /suppliers (list with pagination), GET /suppliers/:id
     - Implement POST /suppliers with CNPJ validation (14-digit format + check-digit)
@@ -134,8 +134,8 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - For any supplier or product with at least one linked order, a delete operation results in inactivation (active=false) and never physical removal
     - **Validates: Requirements 4.3, 5.3**
 
-- [ ] 5. Implement products module
-  - [ ] 5.1 Implement products CRUD endpoints
+- [x] 5. Implement products module
+  - [x] 5.1 Implement products CRUD endpoints
     - Create ProductsModule with controller, service, and DTOs
     - Implement GET /products (list with pagination), GET /products/:id
     - Implement POST /products with validation (nome ≤200, categoria ≤100, unidade ≤50, precoReferencia in 0.01–9999999999.99)
@@ -157,11 +157,11 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Test product-supplier price association
     - _Requirements: 5.6, 5.7_
 
-- [ ] 6. Checkpoint - Core entities
+- [x] 6. Checkpoint - Core entities
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Implement orders module
-  - [ ] 7.1 Implement order CRUD endpoints
+- [x] 7. Implement orders module
+  - [x] 7.1 Implement order CRUD endpoints
     - Create OrdersModule with controller, service, and DTOs
     - Implement GET /orders (list with pagination and filters), GET /orders/:id (with items and invoices)
     - Implement POST /orders with at least 1, at most 50 line items
@@ -170,14 +170,14 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Record audit trail fields and AuditLog entry
     - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
-  - [ ] 7.2 Implement order items management
+  - [x] 7.2 Implement order items management
     - Implement POST /orders/:id/items (add item, recalculate total)
     - Implement PATCH /orders/:id/items/:itemId (update item, recalculate total)
     - Implement DELETE /orders/:id/items/:itemId (remove item, recalculate total)
     - Enforce 1–50 items constraint on every mutation
     - _Requirements: 6.2, 6.3_
 
-  - [ ] 7.3 Implement order status state machine
+  - [x] 7.3 Implement order status state machine
     - Implement PATCH /orders/:id/status endpoint
     - Enforce valid transitions: DRAFT→CONFIRMED, CONFIRMED→DELIVERED, DRAFT→CANCELLED, CONFIRMED→CANCELLED
     - Return error with current status and attempted transition on invalid transitions
