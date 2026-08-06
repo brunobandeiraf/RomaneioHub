@@ -193,8 +193,8 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - For any create or update on Supplier, Product, or Order, the resulting record has non-null created_at, updated_at, and responsible_user_id where updated_at >= created_at
     - **Validates: Requirements 11.1, 11.2, 11.3**
 
-- [ ] 8. Implement invoices module
-  - [ ] 8.1 Implement invoice upload and storage endpoints
+- [x] 8. Implement invoices module
+  - [x] 8.1 Implement invoice upload and storage endpoints
     - Create InvoicesModule with controller, service, and S3Service
     - Implement POST /orders/:id/invoices/upload-url: validate content type (PDF, PNG, JPG, JPEG) and size (≤10MB), generate presigned URL valid for 15 minutes at path notas-fiscais/{tenant_id}/{pedido_id}/{filename}
     - Implement POST /orders/:id/invoices: register Invoice record after successful upload (filename, s3Key, contentType, sizeBytes, uploadedAt, uploadedById)
@@ -208,15 +208,15 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - For any generated presigned URL, the S3 key follows the pattern notas-fiscais/{tenant_id}/{pedido_id}/{filename} where tenant_id matches the requesting user's tenant
     - **Validates: Requirements 7.1, 7.2**
 
-- [ ] 9. Implement subscriptions module
-  - [ ] 9.1 Implement Stripe checkout and portal endpoints
+- [x] 9. Implement subscriptions module
+  - [x] 9.1 Implement Stripe checkout and portal endpoints
     - Create SubscriptionsModule with controller, service, and StripeService
     - Implement POST /subscriptions/checkout: create Stripe Checkout session (monthly/annual)
     - Implement GET /subscriptions/portal: generate Stripe Customer Portal URL
     - Implement GET /subscriptions/status: return current subscription status
     - _Requirements: 3.1, 3.2_
 
-  - [ ] 9.2 Implement Stripe webhook handler with signature validation
+  - [x] 9.2 Implement Stripe webhook handler with signature validation
     - Implement POST /subscriptions/webhook: validate Stripe signature before processing
     - Map webhook events to subscription status transitions (TRIAL, ACTIVE, PAST_DUE, GRACE_PERIOD, BLOCKED, CANCELLED)
     - Persist status within 30 seconds of event receipt
@@ -224,7 +224,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Implement Grace_Period logic (7 days read-only after PAST_DUE)
     - _Requirements: 3.3, 3.4, 3.7, 10.6, 10.7_
 
-  - [ ] 9.3 Implement cancellation and data retention flow
+  - [x] 9.3 Implement cancellation and data retention flow
     - Transition to read-only mode on cancellation with 30-day Grace_Period
     - Allow view and CSV export during Grace_Period
     - Schedule data anonymization/deletion after Grace_Period expires
@@ -237,7 +237,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Subscription status transitions follow valid paths: TRIAL→ACTIVE, ACTIVE→PAST_DUE, PAST_DUE→GRACE_PERIOD, GRACE_PERIOD→BLOCKED, any→CANCELLED, GRACE_PERIOD→ACTIVE
     - **Validates: Requirements 3.4, 3.5, 3.6**
 
-- [ ] 10. Checkpoint - Backend feature modules
+- [x] 10. Checkpoint - Backend feature modules
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 11. Implement dashboard module

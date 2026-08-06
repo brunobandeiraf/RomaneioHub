@@ -3,7 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
 import { StripeService } from './stripe.service';
 import { PrismaService } from '../../prisma';
-import { SubscriptionStatus } from '@compras-hub/shared';
+import { SubscriptionStatus, GRACE_PERIOD_DAYS } from '@compras-hub/shared';
 import Stripe from 'stripe';
 
 describe('WebhookService', () => {
@@ -11,6 +11,7 @@ describe('WebhookService', () => {
   let stripeService: { constructEvent: jest.Mock };
   let prismaService: {
     tenant: {
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
     };
@@ -30,6 +31,7 @@ describe('WebhookService', () => {
 
     prismaService = {
       tenant: {
+        findFirst: jest.fn().mockResolvedValue(mockTenant),
         findUnique: jest.fn().mockResolvedValue(mockTenant),
         update: jest.fn().mockResolvedValue(mockTenant),
       },
@@ -47,7 +49,7 @@ describe('WebhookService', () => {
   });
 
   describe('handleWebhookEvent', () => {
-    it('should reject invalid signature with UnauthorizedException', async () => {
+    it('should return 401 when signature is invalid', async () => {
       const rawBody = Buffer.from('invalid body');
       const signature = 'invalid_sig';
 
@@ -63,30 +65,46 @@ describe('WebhookService', () => {
       expect(prismaService.tenant.update).not.toHaveBeenCalled();
     });
 
-    it('should process customer.subscription.updated with active status', async () => {
+    it('should not process event when signature validation fails', async () => {
+      const rawBody = Buffer.from('tampered body');
+      const signature = 'bad_sig_123';
+
+      stripeService.constructEvent.mockImplementation(() => {
+        throw new UnauthorizedException('Invalid webhook signature');
+      });
+
+      await expect(
+        service.handleWebhookEvent(rawBody, signature),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(prismaService.tenant.findFirst).not.toHaveBeenCalled();
+      expect(prismaService.tenant.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkout.session.completed', () => {
+    it('should set ACTIVE status on checkout.session.completed', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test1',
-        type: 'customer.subscription.updated',
+        id: 'evt_checkout1',
+        type: 'checkout.session.completed',
         data: {
           object: {
             customer: 'cus_test123',
-            status: 'active',
-          } as unknown as Stripe.Subscription,
+          } as unknown as Stripe.Checkout.Session,
           previous_attributes: {},
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       await service.handleWebhookEvent(rawBody, signature);
 
-      expect(prismaService.tenant.findUnique).toHaveBeenCalledWith({
+      expect(prismaService.tenant.findFirst).toHaveBeenCalledWith({
         where: { stripeCustomerId: 'cus_test123' },
+        select: { id: true, subscriptionStatus: true },
       });
       expect(prismaService.tenant.update).toHaveBeenCalledWith({
         where: { id: 'tenant-1' },
@@ -97,12 +115,68 @@ describe('WebhookService', () => {
       });
     });
 
-    it('should transition to PAST_DUE on payment failure with grace period', async () => {
+    it('should not update when tenant is not found for checkout session', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      prismaService.tenant.findFirst.mockResolvedValue(null);
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_checkout2',
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            customer: 'cus_unknown',
+          } as unknown as Stripe.Checkout.Session,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('invoice.paid', () => {
+    it('should transition to ACTIVE and clear gracePeriodEnd on invoice.paid', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test2',
+        id: 'evt_paid1',
+        type: 'invoice.paid',
+        data: {
+          object: {
+            customer: 'cus_test123',
+          } as unknown as Stripe.Invoice,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).toHaveBeenCalledWith({
+        where: { id: 'tenant-1' },
+        data: {
+          subscriptionStatus: SubscriptionStatus.ACTIVE,
+          gracePeriodEnd: null,
+        },
+      });
+    });
+  });
+
+  describe('invoice.payment_failed', () => {
+    it('should transition to PAST_DUE with grace period on payment failure', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_failed1',
         type: 'invoice.payment_failed',
         data: {
           object: {
@@ -112,9 +186,7 @@ describe('WebhookService', () => {
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       const beforeCall = new Date();
       await service.handleWebhookEvent(rawBody, signature);
@@ -131,61 +203,61 @@ describe('WebhookService', () => {
       // Verify grace period is ~7 days from now
       const updateCall = prismaService.tenant.update.mock.calls[0][0];
       const gracePeriodEnd = updateCall.data.gracePeriodEnd as Date;
-      const expectedMin = new Date(beforeCall.getTime() + 7 * 24 * 60 * 60 * 1000 - 1000);
-      const expectedMax = new Date(afterCall.getTime() + 7 * 24 * 60 * 60 * 1000 + 1000);
-      expect(gracePeriodEnd.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
-      expect(gracePeriodEnd.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
-    });
-
-    it('should transition to CANCELLED on subscription deletion', async () => {
-      const rawBody = Buffer.from('valid body');
-      const signature = 'valid_sig';
-
-      const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test3',
-        type: 'customer.subscription.deleted',
-        data: {
-          object: {
-            customer: 'cus_test123',
-            status: 'canceled',
-          } as unknown as Stripe.Subscription,
-          previous_attributes: {},
-        },
-      };
-
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
+      const expectedMin = new Date(
+        beforeCall.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 - 1000,
       );
-
-      await service.handleWebhookEvent(rawBody, signature);
-
-      expect(prismaService.tenant.update).toHaveBeenCalledWith({
-        where: { id: 'tenant-1' },
-        data: {
-          subscriptionStatus: SubscriptionStatus.CANCELLED,
-          gracePeriodEnd: null,
-        },
-      });
+      const expectedMax = new Date(
+        afterCall.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 + 1000,
+      );
+      expect(gracePeriodEnd.getTime()).toBeGreaterThanOrEqual(
+        expectedMin.getTime(),
+      );
+      expect(gracePeriodEnd.getTime()).toBeLessThanOrEqual(
+        expectedMax.getTime(),
+      );
     });
 
-    it('should transition to ACTIVE and clear gracePeriodEnd on invoice.paid', async () => {
+    it('should not update tenant when customer ID is missing from payment failure', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test4',
-        type: 'invoice.paid',
+        id: 'evt_failed2',
+        type: 'invoice.payment_failed',
         data: {
           object: {
-            customer: 'cus_test123',
+            customer: null,
           } as unknown as Stripe.Invoice,
           previous_attributes: {},
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('customer.subscription.updated', () => {
+    it('should map active status to ACTIVE', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_updated1',
+        type: 'customer.subscription.updated',
+        data: {
+          object: {
+            customer: 'cus_test123',
+            status: 'active',
+          } as unknown as Stripe.Subscription,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       await service.handleWebhookEvent(rawBody, signature);
 
@@ -198,13 +270,71 @@ describe('WebhookService', () => {
       });
     });
 
-    it('should handle customer.subscription.created with trialing status as TRIAL', async () => {
+    it('should map past_due status to PAST_DUE with grace period', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test5',
-        type: 'customer.subscription.created',
+        id: 'evt_updated2',
+        type: 'customer.subscription.updated',
+        data: {
+          object: {
+            customer: 'cus_test123',
+            status: 'past_due',
+          } as unknown as Stripe.Subscription,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).toHaveBeenCalledWith({
+        where: { id: 'tenant-1' },
+        data: {
+          subscriptionStatus: SubscriptionStatus.PAST_DUE,
+          gracePeriodEnd: expect.any(Date),
+        },
+      });
+    });
+
+    it('should map canceled status to CANCELLED', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_updated3',
+        type: 'customer.subscription.updated',
+        data: {
+          object: {
+            customer: 'cus_test123',
+            status: 'canceled',
+          } as unknown as Stripe.Subscription,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).toHaveBeenCalledWith({
+        where: { id: 'tenant-1' },
+        data: {
+          subscriptionStatus: SubscriptionStatus.CANCELLED,
+          gracePeriodEnd: null,
+        },
+      });
+    });
+
+    it('should map trialing status to TRIAL', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_updated4',
+        type: 'customer.subscription.updated',
         data: {
           object: {
             customer: 'cus_test123',
@@ -214,9 +344,7 @@ describe('WebhookService', () => {
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       await service.handleWebhookEvent(rawBody, signature);
 
@@ -229,14 +357,14 @@ describe('WebhookService', () => {
       });
     });
 
-    it('should not update tenant when customer ID not found in database', async () => {
+    it('should not update tenant when customer ID is not found in database', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
-      prismaService.tenant.findUnique.mockResolvedValue(null);
+      prismaService.tenant.findFirst.mockResolvedValue(null);
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test6',
+        id: 'evt_updated5',
         type: 'customer.subscription.updated',
         data: {
           object: {
@@ -247,44 +375,64 @@ describe('WebhookService', () => {
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       await service.handleWebhookEvent(rawBody, signature);
 
       expect(prismaService.tenant.update).not.toHaveBeenCalled();
     });
+  });
 
-    it('should handle subscription.updated with past_due and set grace period', async () => {
+  describe('customer.subscription.deleted', () => {
+    it('should transition to CANCELLED on subscription deletion', async () => {
       const rawBody = Buffer.from('valid body');
       const signature = 'valid_sig';
 
       const mockEvent: Partial<Stripe.Event> = {
-        id: 'evt_test7',
-        type: 'customer.subscription.updated',
+        id: 'evt_deleted1',
+        type: 'customer.subscription.deleted',
         data: {
           object: {
             customer: 'cus_test123',
-            status: 'past_due',
+            status: 'canceled',
           } as unknown as Stripe.Subscription,
           previous_attributes: {},
         },
       };
 
-      stripeService.constructEvent.mockReturnValue(
-        mockEvent as Stripe.Event,
-      );
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
 
       await service.handleWebhookEvent(rawBody, signature);
 
       expect(prismaService.tenant.update).toHaveBeenCalledWith({
         where: { id: 'tenant-1' },
         data: {
-          subscriptionStatus: SubscriptionStatus.PAST_DUE,
-          gracePeriodEnd: expect.any(Date),
+          subscriptionStatus: SubscriptionStatus.CANCELLED,
+          gracePeriodEnd: null,
         },
       });
+    });
+  });
+
+  describe('unhandled events', () => {
+    it('should not update tenant for unhandled event types', async () => {
+      const rawBody = Buffer.from('valid body');
+      const signature = 'valid_sig';
+
+      const mockEvent: Partial<Stripe.Event> = {
+        id: 'evt_other1',
+        type: 'payment_intent.succeeded',
+        data: {
+          object: {} as any,
+          previous_attributes: {},
+        },
+      };
+
+      stripeService.constructEvent.mockReturnValue(mockEvent as Stripe.Event);
+
+      await service.handleWebhookEvent(rawBody, signature);
+
+      expect(prismaService.tenant.update).not.toHaveBeenCalled();
     });
   });
 });
