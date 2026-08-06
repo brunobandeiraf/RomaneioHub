@@ -1,6 +1,6 @@
 'use client';
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -49,16 +49,5 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: handle 401
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      clearTokens();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+// Note: 401 handling with token refresh is managed by AuthProvider in auth-context.tsx
+// This keeps the base api-client free of side effects for SSR compatibility.

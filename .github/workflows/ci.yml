@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-lint-${{ runner.os }}-
+
+      - name: Run lint
+        run: turbo run lint
+
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-test-${{ runner.os }}-
+
+      - name: Run tests
+        run: turbo run test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-build-${{ runner.os }}-
+
+      - name: Build all workspaces
+        run: turbo run build

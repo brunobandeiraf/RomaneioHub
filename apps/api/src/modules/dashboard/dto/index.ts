@@ -1,1 +1,5 @@
-export { QueryDashboardDto } from './query-dashboard.dto';
+export {
+  QueryDashboardDto,
+  DashboardPeriod,
+  calculateDateRange,
+} from './query-dashboard.dto';

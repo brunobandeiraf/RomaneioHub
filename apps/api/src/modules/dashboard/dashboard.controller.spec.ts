@@ -3,6 +3,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { RequestUser } from '../../common/interfaces';
 import { GlobalRole, TenantRole } from '@compras-hub/shared';
+import { DashboardPeriod } from './dto/query-dashboard.dto';
 
 describe('DashboardController', () => {
   let controller: DashboardController;
@@ -35,6 +36,98 @@ describe('DashboardController', () => {
     service = module.get<DashboardService>(DashboardService);
   });
 
+  describe('getSummary', () => {
+    it('should call service.getSummary with resolved date range', async () => {
+      const mockSummary = {
+        totalSpent: 1000,
+        orderCount: 5,
+        supplierCount: 3,
+        monthlyEvolution: [],
+        topSuppliers: [],
+        topProducts: [],
+      };
+      jest.spyOn(service, 'getSummary').mockResolvedValue(mockSummary);
+
+      const result = await controller.getSummary({
+        period: DashboardPeriod.CUSTOM,
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        validateDateRange: () => ({
+          startDate: new Date('2024-01-01'),
+          endDate: new Date('2024-01-31'),
+        }),
+      } as any);
+
+      expect(service.getSummary).toHaveBeenCalledWith(
+        new Date('2024-01-01'),
+        new Date('2024-01-31'),
+      );
+      expect(result).toEqual(mockSummary);
+    });
+  });
+
+  describe('getPurchases', () => {
+    it('should call service.getPurchases with filters', async () => {
+      const mockPurchases = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      };
+      jest.spyOn(service, 'getPurchases').mockResolvedValue(mockPurchases);
+
+      const startDate = new Date('2024-01-01');
+      const endDate = new Date('2024-01-31');
+
+      const result = await controller.getPurchases({
+        period: DashboardPeriod.CUSTOM,
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        page: '2',
+        limit: '10',
+        supplierId: 'sup-1',
+        productId: 'prod-1',
+        status: 'CONFIRMED' as any,
+        validateDateRange: () => ({ startDate, endDate }),
+      } as any);
+
+      expect(service.getPurchases).toHaveBeenCalledWith({
+        startDate,
+        endDate,
+        supplierId: 'sup-1',
+        productId: 'prod-1',
+        status: 'CONFIRMED',
+        page: 2,
+        limit: 10,
+      });
+      expect(result).toEqual(mockPurchases);
+    });
+
+    it('should default page and limit to undefined when not provided', async () => {
+      const mockPurchases = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      };
+      jest.spyOn(service, 'getPurchases').mockResolvedValue(mockPurchases);
+
+      const startDate = new Date('2024-01-01');
+      const endDate = new Date('2024-01-31');
+
+      await controller.getPurchases({
+        period: DashboardPeriod.CURRENT_MONTH,
+        validateDateRange: () => ({ startDate, endDate }),
+      } as any);
+
+      expect(service.getPurchases).toHaveBeenCalledWith({
+        startDate,
+        endDate,
+        supplierId: undefined,
+        productId: undefined,
+        status: undefined,
+        page: undefined,
+        limit: undefined,
+      });
+    });
+  });
+
   describe('exportCsv', () => {
     it('should set CSV headers and return CSV content', async () => {
       const csvContent =
@@ -46,7 +139,16 @@ describe('DashboardController', () => {
         send: jest.fn(),
       } as any;
 
-      await controller.exportCsv({ validateDateRange: () => ({ startDate: new Date('2024-01-01'), endDate: new Date('2024-01-31') }) } as any, mockUser, mockRes);
+      await controller.exportCsv(
+        {
+          validateDateRange: () => ({
+            startDate: new Date('2024-01-01'),
+            endDate: new Date('2024-01-31'),
+          }),
+        } as any,
+        mockUser,
+        mockRes,
+      );
 
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Type',
@@ -54,7 +156,7 @@ describe('DashboardController', () => {
       );
       expect(mockRes.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        'attachment; filename=compras_export.csv',
+        'attachment; filename="compras-export.csv"',
       );
       expect(mockRes.send).toHaveBeenCalledWith(csvContent);
     });
@@ -75,8 +177,9 @@ describe('DashboardController', () => {
           status: 'CONFIRMED' as any,
           supplierId: 'sup-1',
           productId: 'prod-1',
-          dateFrom: '2024-01-01',
-          dateTo: '2024-12-31',
+          period: DashboardPeriod.CUSTOM,
+          startDate: '2024-01-01',
+          endDate: '2024-12-31',
           validateDateRange: () => ({ startDate, endDate }),
         } as any,
         mockUser,
@@ -89,32 +192,6 @@ describe('DashboardController', () => {
         supplierId: 'sup-1',
         productId: 'prod-1',
         status: 'CONFIRMED',
-      });
-    });
-
-    it('should call exportCsv with tenant context from service', async () => {
-      jest.spyOn(service, 'exportCsv').mockResolvedValue('');
-
-      const mockRes = {
-        setHeader: jest.fn(),
-        send: jest.fn(),
-      } as any;
-
-      const startDate = new Date('2024-01-01');
-      const endDate = new Date('2024-01-31');
-
-      await controller.exportCsv(
-        { validateDateRange: () => ({ startDate, endDate }) } as any,
-        mockUser,
-        mockRes,
-      );
-
-      expect(service.exportCsv).toHaveBeenCalledWith({
-        startDate,
-        endDate,
-        supplierId: undefined,
-        productId: undefined,
-        status: undefined,
       });
     });
   });

@@ -85,7 +85,7 @@ export class DashboardController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename=compras_export.csv',
+      'attachment; filename="compras-export.csv"',
     );
     res.send(csv);
   }

@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useLogin } from '@/hooks/use-auth';
+import { useAuth } from '@/lib/auth-context';
 
 export default function LoginPage() {
   const router = useRouter();
-  const login = useLogin();
+  const loginMutation = useLogin();
+  const { login: setAuthState } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,10 +38,11 @@ export default function LoginPage() {
     e.preventDefault();
     if (!validate()) return;
 
-    login.mutate(
+    loginMutation.mutate(
       { email, password },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setAuthState(data.accessToken, data.refreshToken, data.user);
           router.push('/');
         },
       }
@@ -73,16 +76,16 @@ export default function LoginPage() {
           error={errors.password}
         />
 
-        {login.error && (
+        {loginMutation.error && (
           <p className="text-sm text-red-600" role="alert">
-            {login.error.response?.data?.message || 'Erro ao fazer login. Tente novamente.'}
+            {loginMutation.error.response?.data?.message || 'Erro ao fazer login. Tente novamente.'}
           </p>
         )}
 
         <Button
           type="submit"
           className="w-full"
-          loading={login.isPending}
+          loading={loginMutation.isPending}
         >
           Entrar
         </Button>

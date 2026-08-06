@@ -240,8 +240,8 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
 - [x] 10. Checkpoint - Backend feature modules
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Implement dashboard module
-  - [ ] 11.1 Implement dashboard summary and purchases endpoints
+- [x] 11. Implement dashboard module
+  - [x] 11.1 Implement dashboard summary and purchases endpoints
     - Create DashboardModule with controller and service
     - Implement GET /dashboard/summary: total amount, order count, distinct suppliers, monthly evolution, top 5 suppliers, top 5 products for selected period
     - Implement GET /dashboard/purchases: paginated list (20/page) with date, supplier, products, quantity, amount, status, invoice link
@@ -250,7 +250,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Support filtering by supplier, product, status (combinatorial)
     - _Requirements: 8.1, 8.2, 8.4, 8.5, 8.6_
 
-  - [ ] 11.2 Implement CSV export endpoint
+  - [x] 11.2 Implement CSV export endpoint
     - Implement GET /dashboard/export: generate CSV with all records matching filters and period
     - Ensure export works during GRACE_PERIOD and BLOCKED statuses
     - _Requirements: 8.7, 14.2_
@@ -260,21 +260,21 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - The total amount spent reported by the dashboard equals the sum of all order totals within the selected date range for the tenant
     - **Validates: Requirements 8.4**
 
-- [ ] 12. Implement security configuration
-  - [ ] 12.1 Configure rate limiting and CORS
+- [x] 12. Implement security configuration
+  - [x] 12.1 Configure rate limiting and CORS
     - Set up @nestjs/throttler with 100 requests per 60-second window per IP
     - Configure CORS to allow only the production frontend domain (from env variable)
     - Configure API Gateway throttling as secondary layer
     - _Requirements: 10.2, 10.3_
 
-  - [ ] 12.2 Configure secrets management and MFA enforcement
+  - [x] 12.2 Configure secrets management and MFA enforcement
     - Integrate AWS Secrets Manager for DATABASE_URL, Stripe keys, and other credentials
     - Enforce MFA for Admin account via Cognito configuration
     - Ensure no secrets in source code
     - _Requirements: 10.4, 10.8, 2.1_
 
-- [ ] 13. Implement frontend pages
-  - [ ] 13.1 Implement authentication pages
+- [x] 13. Implement frontend pages
+  - [x] 13.1 Implement authentication pages
     - Create /login page with email/password form
     - Create /register page for Seller registration
     - Implement password recovery flow pages (forgot-password, reset-password)
@@ -282,21 +282,21 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Integrate with TanStack Query for server state
     - _Requirements: 2.2, 2.3, 2.5_
 
-  - [ ] 13.2 Implement suppliers pages
+  - [x] 13.2 Implement suppliers pages
     - Create /suppliers page with paginated list, search, and filters
     - Create /suppliers/[id] page for detail/edit
     - Implement create supplier form with CNPJ validation and mask
     - Handle soft-delete vs hard-delete confirmation
     - _Requirements: 4.1, 4.2, 4.3, 4.5, 4.6_
 
-  - [ ] 13.3 Implement products pages
+  - [x] 13.3 Implement products pages
     - Create /products page with paginated list, search, and filters
     - Create /products/[id] page for detail/edit with supplier price associations
     - Implement create/edit forms with field validation
     - Handle soft-delete vs hard-delete confirmation
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6_
 
-  - [ ] 13.4 Implement orders pages
+  - [x] 13.4 Implement orders pages
     - Create /orders page with paginated list and filters (status, supplier, date)
     - Create /orders/[id] page with order details, line items, and invoice attachments
     - Create /orders/new page with dynamic line items (1–50), auto-calculated totals
@@ -304,7 +304,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Implement invoice upload via presigned URL with file type/size validation
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.6, 7.1, 7.6_
 
-  - [ ] 13.5 Implement dashboard page
+  - [x] 13.5 Implement dashboard page
     - Create /dashboard page with period filter (current month, previous, last 3, custom range)
     - Implement summary panel with metrics, monthly evolution chart, top 5 lists
     - Implement paginated purchases list (20/page) with combined filters
@@ -314,17 +314,17 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Handle error state with retry option preserving filter selections
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 8.10, 8.11_
 
-  - [ ] 13.6 Implement settings pages (subscription and team management)
+  - [x] 13.6 Implement settings pages (subscription and team management)
     - Create /settings/subscription page with Stripe Checkout redirect and Customer Portal link
     - Display current subscription status and Grace_Period information
     - Create /settings/team page for inviting accountants and managing existing associations
     - _Requirements: 3.1, 3.2, 1.6, 2.4_
 
-- [ ] 14. Checkpoint - Frontend implementation
+- [x] 14. Checkpoint - Frontend implementation
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 15. Set up Docker development environment
-  - [ ] 15.1 Create docker-compose configuration
+- [x] 15. Set up Docker development environment
+  - [x] 15.1 Create docker-compose configuration
     - Configure PostgreSQL 16 Alpine with named volume for data persistence
     - Configure LocalStack for S3 emulation on port 4566
     - Configure Stripe CLI forwarding webhooks to http://api:3001/subscriptions/webhook
@@ -334,15 +334,15 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Expose PostgreSQL on 5432 and LocalStack on 4566 to host
     - _Requirements: 13.1, 13.2, 13.4, 13.5, 13.6_
 
-  - [ ] 15.2 Create .env.example and Dockerfiles for dev
+  - [x] 15.2 Create .env.example and Dockerfiles for dev
     - Create .env.example with all required env variables, descriptions, and example values
     - Create apps/api/Dockerfile.dev for NestJS with hot-reload
     - Create apps/web/Dockerfile.dev for Next.js with hot-reload
     - Configure API to auto-run Prisma migrations and seed on startup in dev mode
     - _Requirements: 13.3, 13.7_
 
-- [ ] 16. Set up infrastructure as code
-  - [ ] 16.1 Create Terraform/CDK infrastructure modules
+- [x] 16. Set up infrastructure as code
+  - [x] 16.1 Create Terraform/CDK infrastructure modules
     - Define Lambda function for NestJS backend with @codegenie/serverless-express
     - Define API Gateway with rate limiting and WAF rules
     - Define RDS PostgreSQL (db.t4g.micro, single-AZ) with RDS Proxy
@@ -352,14 +352,14 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Configure separate environments (dev, staging, prod) with independent state/variables
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 7.3_
 
-  - [ ] 16.2 Create CI/CD pipeline configuration
+  - [x] 16.2 Create CI/CD pipeline configuration
     - Configure pipeline triggered on main branch push or release tag
     - Implement stages in order: lint → tests → build → prisma migrate deploy → infrastructure deploy
     - Halt pipeline and report failure on any stage failure
     - Handle migration failure specifically (abort without proceeding to infra deploy)
     - _Requirements: 12.5, 12.6, 12.7_
 
-- [ ] 17. Final checkpoint - Complete integration
+- [x] 17. Final checkpoint - Complete integration
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

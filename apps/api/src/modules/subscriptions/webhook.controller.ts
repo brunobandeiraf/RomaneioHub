@@ -7,6 +7,7 @@ import {
   HttpCode,
   UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { SkipSubscriptionCheck } from '../../common/decorators/skip-subscription-check.decorator';
@@ -36,6 +37,7 @@ export class WebhookController {
    */
   @Post('webhook')
   @Public()
+  @SkipThrottle()
   @SkipSubscriptionCheck()
   @HttpCode(200)
   async handleWebhook(

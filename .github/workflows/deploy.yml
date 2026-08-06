@@ -1,0 +1,209 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-lint-${{ runner.os }}-
+
+      - name: Run lint
+        run: turbo run lint
+
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-test-${{ runner.os }}-
+
+      - name: Run tests
+        run: turbo run test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
+            turbo-build-${{ runner.os }}-
+
+      - name: Build all workspaces
+        run: turbo run build
+
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      database_url_secret: ${{ steps.env.outputs.database_url_secret }}
+    steps:
+      - name: Set environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "database_url_secret=DATABASE_URL_PROD" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "database_url_secret=DATABASE_URL_DEV" >> $GITHUB_OUTPUT
+          fi
+
+  migrate:
+    name: Database Migration
+    needs: [build, determine-environment]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: packages/db
+
+      - name: Run Prisma Migrate Deploy
+        run: npx prisma migrate deploy
+        working-directory: packages/db
+        env:
+          DATABASE_URL: ${{ secrets[needs.determine-environment.outputs.database_url_secret] }}
+
+  deploy-api:
+    name: Deploy API (Lambda)
+    needs: [migrate, determine-environment]
+    if: success()
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build API
+        run: turbo run build --filter=api
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy infrastructure (API)
+        working-directory: infra/environments/${{ needs.determine-environment.outputs.environment }}
+        run: |
+          terraform init
+          terraform apply -auto-approve -target=module.lambda -target=module.api_gateway
+        env:
+          TF_VAR_database_url: ${{ secrets[needs.determine-environment.outputs.database_url_secret] }}
+          TF_VAR_stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
+          TF_VAR_stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+  deploy-web:
+    name: Deploy Web (Amplify)
+    needs: [migrate, determine-environment]
+    if: success()
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web
+        run: turbo run build --filter=web
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy infrastructure (Web)
+        working-directory: infra/environments/${{ needs.determine-environment.outputs.environment }}
+        run: |
+          terraform init
+          terraform apply -auto-approve -target=module.amplify

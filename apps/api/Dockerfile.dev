@@ -1,0 +1,42 @@
+# =============================================================================
+# ComprasHub API - Development Dockerfile
+# =============================================================================
+# Supports hot-reload via NestJS --watch mode.
+# Auto-runs Prisma migrations and seed on startup.
+# =============================================================================
+
+FROM node:20-alpine
+
+# Install dependencies needed for Prisma and native modules
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+
+# Copy root package files for workspace resolution
+COPY package.json package-lock.json turbo.json ./
+
+# Copy workspace package.json files for dependency installation
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install all dependencies
+RUN npm ci
+
+# Copy Prisma schema and generate client
+COPY packages/db/prisma ./packages/db/prisma
+RUN npx prisma generate --schema=./packages/db/prisma/schema.prisma
+
+# Copy all source code
+COPY packages/ ./packages/
+COPY apps/api/ ./apps/api/
+
+# Copy the dev entrypoint script
+COPY apps/api/scripts/dev-entrypoint.sh ./apps/api/scripts/dev-entrypoint.sh
+RUN chmod +x ./apps/api/scripts/dev-entrypoint.sh
+
+EXPOSE 3001
+
+# Use the entrypoint script to run migrations, seed, then start dev server
+ENTRYPOINT ["./apps/api/scripts/dev-entrypoint.sh"]
