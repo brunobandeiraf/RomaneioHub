@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && npm run build --workspace=@romaneio-hub/web",
+  "buildCommand": "next build",
   "installCommand": "cd ../.. && npm ci",
   "outputDirectory": ".next",
   "framework": "nextjs"
