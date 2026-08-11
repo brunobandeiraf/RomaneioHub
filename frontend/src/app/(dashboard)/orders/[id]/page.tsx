@@ -92,7 +92,7 @@ export default function OrderDetailPage() {
           `/orders/${orderId}/invoices/${invoiceId}/view`,
           { responseType: 'blob' }
         );
-        const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+        const blob = new Blob([response.data], { type: String(response.headers['content-type'] || 'application/pdf') });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
         // Clean up after a delay
