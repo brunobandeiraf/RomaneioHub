@@ -6,14 +6,6 @@ describe('ProductsController - Supplier Association Endpoints', () => {
   let controller: ProductsController;
   let service: jest.Mocked<ProductsService>;
 
-  const mockUser = {
-    userId: 'user-1',
-    tenantId: 'tenant-1',
-    globalRole: 'SELLER' as any,
-    tenantRole: 'SELLER' as any,
-    email: 'user@example.com',
-  };
-
   const mockAssociation = {
     id: 'assoc-1',
     productId: 'product-1',

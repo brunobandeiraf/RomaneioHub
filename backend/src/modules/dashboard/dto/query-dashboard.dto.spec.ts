@@ -127,7 +127,7 @@ describe('calculateDateRange', () => {
 
   describe('default period', () => {
     it('should default to CURRENT_MONTH when no period provided', () => {
-      const { startDate, endDate } = calculateDateRange(undefined);
+      const { startDate } = calculateDateRange(undefined);
 
       const now = new Date();
       expect(startDate.getMonth()).toBe(now.getMonth());

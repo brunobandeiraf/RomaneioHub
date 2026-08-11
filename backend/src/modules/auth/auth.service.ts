@@ -323,12 +323,24 @@ export class AuthService {
   /**
    * Accept an invitation using the token.
    * Validates the token is not expired and not already used.
+   *
+   * Invited users are created (in inviteAccountant) with a placeholder
+   * authId, since no Supabase Auth account exists for them yet. Accepting
+   * the invite is what actually provisions that account — the invitation
+   * link, sent to and clicked from the invitee's inbox, is what proves
+   * email ownership, standing in for the usual OTP confirmation step.
    */
   async acceptInvitation(dto: AcceptInviteDto) {
+    const passwordValidation = validatePasswordStrength(dto.password);
+    if (!passwordValidation.valid) {
+      throw new BadRequestException(passwordValidation.errors);
+    }
+
     const userTenant = await this.prisma.userTenant.findFirst({
       where: {
         invitationToken: dto.token,
       },
+      include: { user: true },
     });
 
     if (!userTenant) {
@@ -345,6 +357,31 @@ export class AuthService {
       throw new BadRequestException('Invitation link is no longer valid');
     }
 
+    // Provision the real Supabase Auth account on first acceptance. If this
+    // user already accepted a different tenant's invite before, they already
+    // have a real account (and password) — skip straight to accepting.
+    if (userTenant.user.authId.startsWith('pending-')) {
+      try {
+        const authResult = await this.supabaseAuthService.signUpConfirmed(
+          userTenant.user.email,
+          dto.password,
+          userTenant.user.name,
+        );
+
+        await this.prisma.user.update({
+          where: { id: userTenant.user.id },
+          data: { authId: authResult.authId },
+        });
+      } catch (error) {
+        if (error instanceof AuthEmailAlreadyExistsError) {
+          throw new ConflictException(
+            'An account with this email already exists. Please log in and ask to be re-invited.',
+          );
+        }
+        throw error;
+      }
+    }
+
     // Accept the invitation
     await this.prisma.userTenant.update({
       where: { id: userTenant.id },
@@ -357,7 +394,7 @@ export class AuthService {
     });
 
     return {
-      message: 'Invitation accepted successfully.',
+      message: 'Invitation accepted successfully. You can now log in.',
     };
   }
 }

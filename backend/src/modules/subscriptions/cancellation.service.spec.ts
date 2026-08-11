@@ -7,7 +7,6 @@ import { CANCELLATION_GRACE_PERIOD_DAYS, SubscriptionStatus } from '../../shared
 
 describe('CancellationService', () => {
   let service: CancellationService;
-  let notificationService: NotificationService;
 
   const mockPrismaService = {
     tenant: {
@@ -40,7 +39,6 @@ describe('CancellationService', () => {
     }).compile();
 
     service = module.get<CancellationService>(CancellationService);
-    notificationService = module.get<NotificationService>(NotificationService);
 
     jest.clearAllMocks();
   });

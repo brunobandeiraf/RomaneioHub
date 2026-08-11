@@ -12,7 +12,7 @@ import {
 } from '../../shared/index';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
-import { SupabaseStorageService, StorageUploadUrlError } from './supabase-storage.service';
+import { SupabaseStorageService } from './supabase-storage.service';
 import { RegisterInvoiceDto } from './dto/register-invoice.dto';
 
 @Injectable()

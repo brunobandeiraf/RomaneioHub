@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 interface SupabaseJwtPayload {
@@ -24,7 +25,12 @@ interface SupabaseJwtPayload {
 /**
  * JwtAuthGuard validates JWT tokens issued by Supabase Auth.
  *
- * - Verifies JWT signature using SUPABASE_JWT_SECRET (HS256)
+ * Supabase projects can sign tokens either with the legacy shared secret
+ * (HS256, via SUPABASE_JWT_SECRET) or with asymmetric JWT signing keys
+ * (ES256/RS256, verified against the project's JWKS endpoint). This guard
+ * inspects the token header and verifies against whichever scheme it was
+ * signed with.
+ *
  * - Extracts claims from app_metadata (tenantId, globalRole, tenantRole)
  * - Sets request.user with { authId, email, tenantId, globalRole, tenantRole }
  *
@@ -34,15 +40,30 @@ interface SupabaseJwtPayload {
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly jwtSecret: string;
+  private readonly jwks: ReturnType<typeof createRemoteJWKSet> | null;
+  private readonly issuer: string | null;
+  private readonly isProduction: boolean;
 
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
   ) {
     this.jwtSecret = this.configService.get<string>('SUPABASE_JWT_SECRET', '');
+    this.isProduction = this.configService.get<string>('NODE_ENV', '') === 'production';
+
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL', '');
+    if (supabaseUrl) {
+      this.jwks = createRemoteJWKSet(
+        new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`),
+      );
+      this.issuer = `${supabaseUrl}/auth/v1`;
+    } else {
+      this.jwks = null;
+      this.issuer = null;
+    }
   }
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -73,8 +94,20 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required: missing or invalid token');
     }
 
-    // In development without a JWT secret configured, fall back to decode-only
+    const alg = this.peekAlgorithm(token);
+
+    // Asymmetric signing keys (Supabase's JWT Signing Keys system) must be
+    // verified against the project's JWKS — a static shared secret can't do it.
+    if (alg && alg !== 'HS256') {
+      return this.verifyWithJwks(request, token);
+    }
+
+    // In development without a JWT secret configured, fall back to decode-only.
+    // Never allowed in production — an unsigned/unverified token would be trivial to forge.
     if (!this.jwtSecret) {
+      if (this.isProduction) {
+        throw new UnauthorizedException('Authentication required: invalid or expired token');
+      }
       return this.decodeWithoutVerification(request, token);
     }
 
@@ -83,25 +116,76 @@ export class JwtAuthGuard implements CanActivate {
         algorithms: ['HS256'],
       }) as SupabaseJwtPayload;
 
-      request.user = {
-        authId: payload.sub,
-        email: payload.email,
-        tenantId: payload.app_metadata?.tenantId,
-        globalRole: payload.app_metadata?.globalRole ?? 'SELLER',
-        tenantRole: payload.app_metadata?.tenantRole,
-      };
+      this.setUserFromClaims(request, payload.sub, payload.email, payload.app_metadata);
 
       return true;
-    } catch (err) {
+    } catch {
       // Never reveal details of the secret or the validation failure
       throw new UnauthorizedException('Authentication required: invalid or expired token');
     }
   }
 
   /**
+   * Reads the `alg` field from the JWT header without verifying the token.
+   * Used only to route to the correct verification strategy.
+   */
+  private peekAlgorithm(token: string): string | null {
+    try {
+      const [headerB64] = token.split('.');
+      const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf-8'));
+      return typeof header.alg === 'string' ? header.alg : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async verifyWithJwks(request: any, token: string): Promise<boolean> {
+    if (!this.jwks) {
+      throw new UnauthorizedException('Authentication required: invalid or expired token');
+    }
+
+    try {
+      const { payload } = await jwtVerify(token, this.jwks, {
+        issuer: this.issuer ?? undefined,
+      });
+
+      const claims = payload as JWTPayload & {
+        email?: string;
+        app_metadata?: SupabaseJwtPayload['app_metadata'];
+      };
+
+      this.setUserFromClaims(request, claims.sub, claims.email, claims.app_metadata);
+
+      return true;
+    } catch {
+      throw new UnauthorizedException('Authentication required: invalid or expired token');
+    }
+  }
+
+  private setUserFromClaims(
+    request: any,
+    authId: string | undefined,
+    email: string | undefined,
+    appMetadata: SupabaseJwtPayload['app_metadata'] | undefined,
+  ): void {
+    request.user = {
+      authId,
+      email,
+      tenantId: appMetadata?.tenantId,
+      globalRole: appMetadata?.globalRole ?? 'SELLER',
+      tenantRole: appMetadata?.tenantRole,
+    };
+  }
+
+  /**
    * Fallback for development mode: extract user from custom headers.
+   * Never active in production — these headers are trivially spoofable.
    */
   private tryDevHeaders(request: any): boolean {
+    if (this.isProduction) {
+      throw new UnauthorizedException('Authentication required: missing or invalid token');
+    }
+
     const userId = request.headers?.['x-user-id'];
     const email = request.headers?.['x-user-email'];
 

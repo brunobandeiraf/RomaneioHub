@@ -15,7 +15,6 @@ describe('InvoicesService', () => {
   let service: InvoicesService;
   let storageService: jest.Mocked<SupabaseStorageService>;
   let prismaService: any;
-  let tenantContext: jest.Mocked<TenantContext>;
 
   const mockTenantId = 'tenant-123';
   const mockOrderId = 'order-456';
@@ -57,7 +56,6 @@ describe('InvoicesService', () => {
     service = module.get<InvoicesService>(InvoicesService);
     storageService = module.get(SupabaseStorageService);
     prismaService = module.get(PrismaService);
-    tenantContext = module.get(TenantContext);
   });
 
   describe('generateUploadUrl', () => {

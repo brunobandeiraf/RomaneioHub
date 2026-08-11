@@ -1,8 +1,60 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
-const SALT_ROUNDS = 10;
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error(
+    'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required to run the seed script (users are provisioned in Supabase Auth, not just Postgres).',
+  );
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+/**
+ * Creates a pre-confirmed Supabase Auth user, or looks up its id if an
+ * account with that email already exists (safe to re-run the seed).
+ */
+async function getOrCreateAuthUser(
+  email: string,
+  password: string,
+  name: string,
+): Promise<string> {
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name },
+  });
+
+  if (!error) {
+    return data.user.id;
+  }
+
+  const alreadyExists =
+    error.message.toLowerCase().includes('already registered') ||
+    error.message.toLowerCase().includes('already exists') ||
+    error.code === 'email_exists';
+
+  if (!alreadyExists) {
+    throw error;
+  }
+
+  const existing = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM auth.users WHERE email = ${email} LIMIT 1
+  `;
+
+  if (!existing[0]) {
+    throw new Error(`Auth user for ${email} reported as existing but not found`);
+  }
+
+  return existing[0].id;
+}
 
 // Helper: random number between min and max
 function rand(min: number, max: number) {
@@ -30,34 +82,39 @@ function pick<T>(arr: T[]): T {
 async function main() {
   console.log('🌱 Starting comprehensive seed...');
 
-  // Hash passwords
-  const adminPassword = await bcrypt.hash('Admin@2024!', SALT_ROUNDS);
-  const sellerPassword = await bcrypt.hash('Seller@2024!', SALT_ROUNDS);
+  // 1. Users — provisioned in Supabase Auth first, then mirrored into Postgres
+  const adminAuthId = await getOrCreateAuthUser(
+    'admin@romaneiohub.com',
+    'Admin@2024!',
+    'Admin RomaneioHub',
+  );
+  const sellerAuthId = await getOrCreateAuthUser(
+    'seller@demo.com',
+    'Seller@2024!',
+    'Bruno Bandeira',
+  );
 
-  // 1. Users
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@romaneiohub.com' },
-    update: { passwordHash: adminPassword },
+    update: { authId: adminAuthId },
     create: {
       email: 'admin@romaneiohub.com',
       name: 'Admin RomaneioHub',
-      authId: 'admin-cognito-sub-placeholder',
+      authId: adminAuthId,
       globalRole: 'ADMIN',
       mfaEnabled: true,
-      passwordHash: adminPassword,
     },
   });
 
   const sellerUser = await prisma.user.upsert({
     where: { email: 'seller@demo.com' },
-    update: { passwordHash: sellerPassword },
+    update: { authId: sellerAuthId },
     create: {
       email: 'seller@demo.com',
       name: 'Bruno Bandeira',
-      authId: 'seller-cognito-sub-placeholder',
+      authId: sellerAuthId,
       globalRole: 'SELLER',
       mfaEnabled: false,
-      passwordHash: sellerPassword,
     },
   });
 

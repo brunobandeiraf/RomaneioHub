@@ -1,6 +1,5 @@
 import * as fc from 'fast-check';
 import { TenantContext } from './tenant-context';
-import { createTenantExtension } from './tenant.middleware';
 import { TENANT_SCOPED_MODELS } from '../shared/index';
 
 /**
@@ -19,24 +18,6 @@ describe('Property 2: Tenant Data Isolation', () => {
   const tenantScopedModels = [...TENANT_SCOPED_MODELS];
   const readOperations = ['findMany', 'findFirst', 'findUnique'] as const;
   const writeWhereOperations = ['update', 'updateMany', 'delete', 'deleteMany'] as const;
-  const createOperations = ['create'] as const;
-
-  /**
-   * Helper to build a mock Prisma client that records the args passed to queries.
-   * The extension hooks into `$extends`, so we simulate the Prisma extension mechanism.
-   */
-  function createMockPrismaClient() {
-    const capturedCalls: Array<{
-      model: string;
-      action: string;
-      args: any;
-    }> = [];
-
-    // The extension returned by createTenantExtension calls client.$extends(...)
-    // We need to simulate how Prisma processes this.
-    // The extension defines query hooks for $allModels, so we invoke those hooks directly.
-    return { capturedCalls };
-  }
 
   /**
    * Directly test injectTenantWhereClause behavior by simulating what the extension does.
@@ -294,8 +275,7 @@ describe('Property 2: Tenant Data Isolation', () => {
       fc.assert(
         fc.property(
           modelArb,
-          fc.constantFrom(...readOperations, ...writeWhereOperations),
-          (model, action) => {
+          (model) => {
             // Directly call without wrapping in tenantContext.run()
             const args = { where: {} };
 

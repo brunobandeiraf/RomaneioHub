@@ -22,6 +22,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     const mockSupabaseAuthService = {
       signUp: jest.fn(),
+      signUpConfirmed: jest.fn(),
       confirmOtp: jest.fn(),
       signIn: jest.fn(),
       requestPasswordReset: jest.fn(),
@@ -32,7 +33,7 @@ describe('AuthService', () => {
     const mockPrismaService: Record<string, any> = {
       $transaction: jest.fn(),
       tenant: { create: jest.fn() },
-      user: { create: jest.fn(), findUnique: jest.fn() },
+      user: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
       userTenant: { create: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
     mockPrismaService.$transaction = jest.fn((fn: any) => fn(mockPrismaService));
@@ -521,7 +522,16 @@ describe('AuthService', () => {
   });
 
   describe('acceptInvitation', () => {
-    it('should accept a valid invitation', async () => {
+    const validPassword = 'ValidP@ss1';
+
+    const pendingInvitee = {
+      id: 'user-1',
+      email: 'invitee@example.com',
+      name: 'Invitee Name',
+      authId: 'pending-abc123',
+    };
+
+    it('should provision a Supabase account and accept a valid invitation for a pending user', async () => {
       const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
       prismaService.userTenant.findFirst.mockResolvedValue({
         id: 'ut-1',
@@ -530,15 +540,36 @@ describe('AuthService', () => {
         status: 'PENDING',
         invitationToken: 'valid-token',
         invitationExpiresAt: futureDate,
+        user: pendingInvitee,
+      });
+      supabaseAuthService.signUpConfirmed.mockResolvedValue({
+        authId: 'real-auth-id-789',
+        codeDeliveryDestination: pendingInvitee.email,
+      });
+      prismaService.user.update.mockResolvedValue({
+        ...pendingInvitee,
+        authId: 'real-auth-id-789',
       });
       prismaService.userTenant.update.mockResolvedValue({
         id: 'ut-1',
         status: 'ACCEPTED',
       });
 
-      const result = await service.acceptInvitation({ token: 'valid-token' });
+      const result = await service.acceptInvitation({
+        token: 'valid-token',
+        password: validPassword,
+      });
 
-      expect(result.message).toBe('Invitation accepted successfully.');
+      expect(result.message).toBe('Invitation accepted successfully. You can now log in.');
+      expect(supabaseAuthService.signUpConfirmed).toHaveBeenCalledWith(
+        pendingInvitee.email,
+        validPassword,
+        pendingInvitee.name,
+      );
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: pendingInvitee.id },
+        data: { authId: 'real-auth-id-789' },
+      });
       expect(prismaService.userTenant.update).toHaveBeenCalledWith({
         where: { id: 'ut-1' },
         data: {
@@ -550,14 +581,43 @@ describe('AuthService', () => {
       });
     });
 
+    it('should skip Supabase account provisioning for a user who already has a real account', async () => {
+      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      prismaService.userTenant.findFirst.mockResolvedValue({
+        id: 'ut-2',
+        userId: 'user-2',
+        tenantId: 'tenant-2',
+        status: 'PENDING',
+        invitationToken: 'second-invite-token',
+        invitationExpiresAt: futureDate,
+        user: { id: 'user-2', email: 'existing@example.com', name: 'Existing User', authId: 'real-auth-id-existing' },
+      });
+      prismaService.userTenant.update.mockResolvedValue({
+        id: 'ut-2',
+        status: 'ACCEPTED',
+      });
+
+      await service.acceptInvitation({ token: 'second-invite-token', password: validPassword });
+
+      expect(supabaseAuthService.signUpConfirmed).not.toHaveBeenCalled();
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for a weak password', async () => {
+      await expect(
+        service.acceptInvitation({ token: 'valid-token', password: 'weak' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaService.userTenant.findFirst).not.toHaveBeenCalled();
+    });
+
     it('should throw BadRequestException for non-existent token', async () => {
       prismaService.userTenant.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.acceptInvitation({ token: 'invalid-token' }),
+        service.acceptInvitation({ token: 'invalid-token', password: validPassword }),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.acceptInvitation({ token: 'invalid-token' }),
+        service.acceptInvitation({ token: 'invalid-token', password: validPassword }),
       ).rejects.toThrow('Invitation link is no longer valid');
     });
 
@@ -570,13 +630,14 @@ describe('AuthService', () => {
         status: 'PENDING',
         invitationToken: 'expired-token',
         invitationExpiresAt: pastDate,
+        user: pendingInvitee,
       });
 
       await expect(
-        service.acceptInvitation({ token: 'expired-token' }),
+        service.acceptInvitation({ token: 'expired-token', password: validPassword }),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.acceptInvitation({ token: 'expired-token' }),
+        service.acceptInvitation({ token: 'expired-token', password: validPassword }),
       ).rejects.toThrow('Invitation link is no longer valid');
     });
 
@@ -589,13 +650,14 @@ describe('AuthService', () => {
         status: 'ACCEPTED',
         invitationToken: 'used-token',
         invitationExpiresAt: futureDate,
+        user: pendingInvitee,
       });
 
       await expect(
-        service.acceptInvitation({ token: 'used-token' }),
+        service.acceptInvitation({ token: 'used-token', password: validPassword }),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.acceptInvitation({ token: 'used-token' }),
+        service.acceptInvitation({ token: 'used-token', password: validPassword }),
       ).rejects.toThrow('Invitation has already been used');
     });
 
@@ -608,13 +670,22 @@ describe('AuthService', () => {
         status: 'PENDING',
         invitationToken: 'some-token',
         invitationExpiresAt: futureDate,
+        user: pendingInvitee,
+      });
+      supabaseAuthService.signUpConfirmed.mockResolvedValue({
+        authId: 'real-auth-id-789',
+        codeDeliveryDestination: pendingInvitee.email,
+      });
+      prismaService.user.update.mockResolvedValue({
+        ...pendingInvitee,
+        authId: 'real-auth-id-789',
       });
       prismaService.userTenant.update.mockResolvedValue({
         id: 'ut-1',
         status: 'ACCEPTED',
       });
 
-      await service.acceptInvitation({ token: 'some-token' });
+      await service.acceptInvitation({ token: 'some-token', password: validPassword });
 
       expect(prismaService.userTenant.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -624,6 +695,26 @@ describe('AuthService', () => {
           }),
         }),
       );
+    });
+
+    it('should throw ConflictException when the invitee email is already registered elsewhere', async () => {
+      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      prismaService.userTenant.findFirst.mockResolvedValue({
+        id: 'ut-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        status: 'PENDING',
+        invitationToken: 'valid-token',
+        invitationExpiresAt: futureDate,
+        user: pendingInvitee,
+      });
+      supabaseAuthService.signUpConfirmed.mockRejectedValue(
+        new AuthEmailAlreadyExistsError('An account with this email already exists'),
+      );
+
+      await expect(
+        service.acceptInvitation({ token: 'valid-token', password: validPassword }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

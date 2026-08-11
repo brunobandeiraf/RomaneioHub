@@ -31,13 +31,6 @@ describe('TenantContextInterceptor', () => {
     let capturedTenantId: string | undefined;
 
     const context = createMockContext('tenant-123');
-    const handler: CallHandler = {
-      handle: () =>
-        of(undefined).pipe(
-          // The observable runs inside the tenant context
-          // We need to capture the tenantId during subscription
-        ),
-    };
 
     // Use a custom handler that captures the context during execution
     const customHandler: CallHandler = {

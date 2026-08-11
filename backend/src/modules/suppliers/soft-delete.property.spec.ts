@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import * as fc from 'fast-check';
 import { SuppliersService } from './suppliers.service';
 import { ProductsService } from '../products/products.service';

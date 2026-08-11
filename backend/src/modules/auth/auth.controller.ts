@@ -1,10 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Public, Roles, CurrentUser } from '../../common/decorators';
 import { TenantRole } from '../../shared/index';
 import { RequestUser } from '../../common/interfaces';
 import { AuthService } from './auth.service';
-import { DevAuthService } from './dev-auth.service';
 import {
   RegisterDto,
   ConfirmDto,
@@ -17,15 +15,7 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  private readonly isDev: boolean;
-
-  constructor(
-    private readonly authService: AuthService,
-    private readonly devAuthService: DevAuthService,
-    private readonly configService: ConfigService,
-  ) {
-    this.isDev = this.configService.get('NODE_ENV') !== 'production';
-  }
+  constructor(private readonly authService: AuthService) {}
 
   /**
    * Register a new Seller account.
@@ -56,10 +46,6 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
-    // In development, use local DB authentication (bypasses Cognito)
-    if (this.isDev) {
-      return this.devAuthService.login(dto.email, dto.password);
-    }
     return this.authService.login(dto);
   }
 

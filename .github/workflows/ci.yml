@@ -11,82 +11,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  backend:
+    name: Backend
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Cache Turbo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-lint-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
-            turbo-lint-${{ runner.os }}-
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
-      - name: Run lint
-        run: turbo run lint
+      - name: Lint
+        run: npm run lint
 
-  test:
-    name: Test
-    needs: lint
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Cache Turbo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-test-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
-            turbo-test-${{ runner.os }}-
+      - name: Lint
+        run: npm run lint
 
-      - name: Run tests
-        run: turbo run test
-
-  build:
-    name: Build
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Cache Turbo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-build-${{ runner.os }}-${{ hashFiles('**/turbo.json') }}-
-            turbo-build-${{ runner.os }}-
-
-      - name: Build all workspaces
-        run: turbo run build
+      - name: Build
+        run: npm run build

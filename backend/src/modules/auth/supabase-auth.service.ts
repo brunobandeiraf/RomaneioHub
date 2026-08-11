@@ -120,6 +120,41 @@ export class SupabaseAuthService {
   }
 
   /**
+   * Register a new, pre-confirmed user via Supabase Auth Admin API.
+   * Used for invite-acceptance flows where the invitation link itself
+   * (sent to and clicked from the invitee's inbox) already proves email
+   * ownership, so no separate OTP confirmation step is needed.
+   */
+  async signUpConfirmed(email: string, password: string, name: string): Promise<AuthSignUpResult> {
+    const { data, error } = await this.supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name },
+    });
+
+    if (error) {
+      this.logger.error(`Supabase signUpConfirmed failed for ${email}: ${error.message}`);
+
+      if (
+        error.message.toLowerCase().includes('already registered') ||
+        error.message.toLowerCase().includes('already exists') ||
+        error.message.toLowerCase().includes('email address is already taken') ||
+        error.code === 'email_exists'
+      ) {
+        throw new AuthEmailAlreadyExistsError('An account with this email already exists');
+      }
+
+      throw error;
+    }
+
+    return {
+      authId: data.user.id,
+      codeDeliveryDestination: email,
+    };
+  }
+
+  /**
    * Confirm user email via OTP token sent to their email.
    */
   async confirmOtp(email: string, token: string): Promise<void> {

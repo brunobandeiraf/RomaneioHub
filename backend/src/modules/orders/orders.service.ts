@@ -285,7 +285,15 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    // Update the order status (any transition allowed)
+    const currentStatus = order.status as OrderStatus;
+    const allowedTransitions = VALID_ORDER_TRANSITIONS[currentStatus];
+
+    if (!allowedTransitions.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`,
+      );
+    }
+
     return this.prisma.extended.order.update({
       where: { id: orderId },
       data: {

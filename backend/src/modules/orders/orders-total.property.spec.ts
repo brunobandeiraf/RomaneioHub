@@ -20,9 +20,6 @@ describe('Property 1: Order Total Calculation Integrity', () => {
     getTenantId: jest.fn().mockReturnValue('tenant-1'),
   };
 
-  // We capture what is passed to prisma.$transaction so we can verify the calculated total
-  let capturedTransactionFn: (tx: any) => Promise<any>;
-
   const mockPrismaService = {
     extended: {
       order: {
@@ -33,7 +30,6 @@ describe('Property 1: Order Total Calculation Integrity', () => {
       },
     },
     $transaction: jest.fn(async (fn: (tx: any) => Promise<any>) => {
-      capturedTransactionFn = fn;
       const mockTx = {
         order: {
           create: jest.fn().mockImplementation(async (args: any) => ({
