@@ -12,25 +12,22 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copia manifesto do monorepo para resolver workspaces
-COPY package.json package-lock.json turbo.json ./
-COPY apps/api/package.json ./apps/api/
-COPY packages/db/package.json ./packages/db/
-COPY packages/shared/package.json ./packages/shared/
+# Copia manifesto de dependências
+COPY package.json ./
 
 # Instala todas as dependências (incluindo devDependencies para build)
-RUN npm ci
+RUN npm install
 
 # Copia schema Prisma e gera o client
-COPY packages/db/prisma ./packages/db/prisma
-RUN npx prisma generate --schema=./packages/db/prisma/schema.prisma
+COPY prisma ./prisma
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Copia código fonte
-COPY packages/ ./packages/
-COPY apps/api/ ./apps/api/
+COPY tsconfig.json nest-cli.json ./
+COPY src ./src
 
 # Compila TypeScript
-RUN npm run build -w @romaneio-hub/api
+RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -42,22 +39,19 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copia manifesto para instalar apenas dependências de produção
-COPY package.json package-lock.json turbo.json ./
-COPY apps/api/package.json ./apps/api/
-COPY packages/db/package.json ./packages/db/
-COPY packages/shared/package.json ./packages/shared/
+COPY package.json ./
 
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copia Prisma client gerado e schema (necessário em runtime)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY packages/db/prisma ./packages/db/prisma
+COPY prisma ./prisma
 
 # Copia artefatos compilados
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3001
 
 ENV NODE_ENV=production
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
