@@ -6,7 +6,7 @@
 # =============================================================================
 
 # Stage 1: Builder
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 RUN apk add --no-cache openssl
 
@@ -32,7 +32,7 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Stage 2: Runner
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 RUN apk add --no-cache openssl
 
