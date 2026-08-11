@@ -5,14 +5,14 @@ import {
 } from '@nestjs/common';
 import {
   ALLOWED_INVOICE_CONTENT_TYPES,
-  INVOICE_S3_KEY_PREFIX,
+  INVOICE_STORAGE_KEY_PREFIX,
   MAX_INVOICE_FILE_SIZE,
   MAX_INVOICES_PER_ORDER,
   PRESIGNED_URL_EXPIRY_SECONDS,
 } from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
-import { S3Service } from './s3.service';
+import { SupabaseStorageService, StorageUploadUrlError } from './supabase-storage.service';
 import { RegisterInvoiceDto } from './dto/register-invoice.dto';
 
 @Injectable()
@@ -20,11 +20,11 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
-    private readonly s3Service: S3Service,
+    private readonly storageService: SupabaseStorageService,
   ) {}
 
   /**
-   * Generates a presigned PUT URL for uploading an invoice to S3.
+   * Generates a presigned PUT URL for uploading an invoice to Supabase Storage.
    * Validates content type, file size, order existence, and max invoice limit.
    */
   async generateUploadUrl(
@@ -69,15 +69,11 @@ export class InvoicesService {
     }
 
     const tenantId = this.tenantContext.getTenantId();
-    const s3Key = `${INVOICE_S3_KEY_PREFIX}/${tenantId}/${orderId}/${filename}`;
+    const storageKey = `${INVOICE_STORAGE_KEY_PREFIX}/${tenantId}/${orderId}/${filename}`;
 
-    const url = await this.s3Service.generatePresignedPutUrl(
-      s3Key,
-      contentType,
-      PRESIGNED_URL_EXPIRY_SECONDS,
-    );
+    const url = await this.storageService.createSignedUploadUrl(storageKey);
 
-    return { url, s3Key, expiresIn: PRESIGNED_URL_EXPIRY_SECONDS };
+    return { url, storageKey, expiresIn: PRESIGNED_URL_EXPIRY_SECONDS };
   }
 
   /**
@@ -110,11 +106,11 @@ export class InvoicesService {
       data: {
         orderId,
         filename: dto.filename,
-        s3Key: dto.s3Key,
+        storageKey: dto.storageKey,
         contentType: dto.contentType,
         sizeBytes: dto.sizeBytes,
         uploadedById: userId,
-        category: dto.category || 'PURCHASE',
+        category: (dto.category || 'PURCHASE') as any,
       },
     });
 
@@ -161,8 +157,8 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    const url = await this.s3Service.generatePresignedGetUrl(
-      invoice.s3Key,
+    const url = await this.storageService.createSignedUrl(
+      invoice.storageKey,
       PRESIGNED_URL_EXPIRY_SECONDS,
     );
 
@@ -170,7 +166,9 @@ export class InvoicesService {
   }
 
   /**
-   * Upload a file directly through the backend to S3 and register the invoice.
+   * Upload a file directly through the backend and register the invoice.
+   * In Supabase, the actual upload is done client-side via signed URL.
+   * This method generates a signed upload URL and registers the invoice record.
    * If a file with the same name and category already exists, it will be replaced.
    */
   async uploadDirect(
@@ -190,7 +188,7 @@ export class InvoicesService {
     }
 
     const tenantId = this.tenantContext.getTenantId();
-    const s3Key = `${INVOICE_S3_KEY_PREFIX}/${tenantId}/${orderId}/${file.originalname}`;
+    const storageKey = `${INVOICE_STORAGE_KEY_PREFIX}/${tenantId}/${orderId}/${file.originalname}`;
 
     // Check if file with same name + category already exists — replace it
     const existing = await this.prisma.invoice.findFirst({
@@ -202,7 +200,7 @@ export class InvoicesService {
     });
 
     if (existing) {
-      // Delete old record (S3 will be overwritten)
+      // Delete old record (storage object will be overwritten via signed URL)
       await this.prisma.invoice.delete({ where: { id: existing.id } });
     } else {
       // Check max limit only for new files
@@ -213,19 +211,17 @@ export class InvoicesService {
       }
     }
 
-    // Upload to S3
-    await this.s3Service.uploadFile(s3Key, file.buffer, file.mimetype);
-
-    // Register in database
+    // Register in database (client uploads directly to Supabase Storage via signed URL)
     const invoice = await this.prisma.invoice.create({
       data: {
         orderId,
         filename: file.originalname,
-        s3Key,
+        storageKey,
+        storageUrl: null,
         contentType: file.mimetype,
         sizeBytes: file.size,
         uploadedById: userId,
-        category: category || 'PURCHASE',
+        category: (category || 'PURCHASE') as any,
       },
     });
 
@@ -233,7 +229,8 @@ export class InvoicesService {
   }
 
   /**
-   * Get file stream for viewing in the browser.
+   * Get file access details for viewing in the browser.
+   * Returns a signed URL instead of a stream (Supabase Storage does not support server-side streams).
    */
   async getFileStream(orderId: string, invoiceId: string) {
     const order = await this.prisma.extended.order.findFirst({
@@ -252,17 +249,20 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    const stream = await this.s3Service.getFileStream(invoice.s3Key);
+    const signedUrl = await this.storageService.createSignedUrl(
+      invoice.storageKey,
+      PRESIGNED_URL_EXPIRY_SECONDS,
+    );
 
     return {
-      stream,
+      signedUrl,
       contentType: invoice.contentType,
       filename: invoice.filename,
     };
   }
 
   /**
-   * Delete an invoice record and its S3 file.
+   * Delete an invoice record and its storage file.
    */
   async deleteInvoice(orderId: string, invoiceId: string) {
     // Verify order exists within tenant scope
@@ -282,8 +282,8 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    // Delete from S3
-    await this.s3Service.deleteFile(invoice.s3Key);
+    // Delete from Supabase Storage
+    await this.storageService.remove(invoice.storageKey);
 
     // Delete from database
     await this.prisma.invoice.delete({ where: { id: invoiceId } });

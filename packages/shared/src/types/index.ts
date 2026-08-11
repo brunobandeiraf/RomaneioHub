@@ -47,7 +47,7 @@ export interface Tenant {
 
 export interface User {
   id: string;
-  cognitoSub: string;
+  authId: string;
   email: string;
   name: string;
   globalRole: GlobalRole;
@@ -130,7 +130,7 @@ export interface Invoice {
   id: string;
   orderId: string;
   filename: string;
-  s3Key: string;
+  storageKey: string;
   contentType: string;
   sizeBytes: number;
   uploadedAt: Date;

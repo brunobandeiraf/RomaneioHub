@@ -63,7 +63,7 @@ export class ProductsController {
     @Body() dto: CreateProductDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.productsService.create(dto, user.userId);
+    return this.productsService.create(dto, user.authId);
   }
 
   /**
@@ -77,7 +77,7 @@ export class ProductsController {
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.productsService.update(id, dto, user.userId);
+    return this.productsService.update(id, dto, user.authId);
   }
 
   /**

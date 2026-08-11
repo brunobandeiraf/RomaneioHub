@@ -135,7 +135,7 @@ export function useRegisterInvoice(orderId: string) {
   return useMutation<
     unknown,
     AxiosError<ApiError>,
-    { filename: string; s3Key: string; contentType: string; sizeBytes: number }
+    { filename: string; storageKey: string; contentType: string; sizeBytes: number }
   >({
     mutationFn: async (data) => {
       const response = await apiClient.post(

@@ -10,7 +10,7 @@ describe('DashboardController', () => {
   let service: DashboardService;
 
   const mockUser: RequestUser = {
-    userId: 'user-1',
+    authId: 'user-1',
     tenantId: 'tenant-1',
     globalRole: GlobalRole.SELLER,
     tenantRole: TenantRole.SELLER,

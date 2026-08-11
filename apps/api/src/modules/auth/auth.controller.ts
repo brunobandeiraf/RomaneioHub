@@ -96,7 +96,7 @@ export class AuthController {
     @CurrentUser() user: RequestUser,
     @Body() dto: InviteDto,
   ) {
-    return this.authService.inviteAccountant(user.userId, user.tenantId, dto);
+    return this.authService.inviteAccountant(user.authId, user.tenantId, dto);
   }
 
   /**

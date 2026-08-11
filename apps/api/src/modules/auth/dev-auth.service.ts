@@ -62,15 +62,17 @@ export class DevAuthService {
     const tenantId = tenantAssociation?.tenantId || null;
     const tenantRole = tenantAssociation?.role || null;
 
-    // Generate JWT tokens (mimicking Cognito structure)
+    // Generate JWT tokens (mimicking Supabase structure)
     const payload = {
       sub: user.id,
       userId: user.id,
       email: user.email,
       name: user.name,
-      tenantId,
-      globalRole: user.globalRole,
-      tenantRole,
+      app_metadata: {
+        tenantId,
+        globalRole: user.globalRole,
+        tenantRole,
+      },
     };
 
     const accessToken = jwt.sign(payload, this.jwtSecret, { expiresIn: '1h' });

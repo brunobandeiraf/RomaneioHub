@@ -41,7 +41,7 @@ async function main() {
     create: {
       email: 'admin@romaneiohub.com',
       name: 'Admin RomaneioHub',
-      cognitoSub: 'admin-cognito-sub-placeholder',
+      authId: 'admin-cognito-sub-placeholder',
       globalRole: 'ADMIN',
       mfaEnabled: true,
       passwordHash: adminPassword,
@@ -54,7 +54,7 @@ async function main() {
     create: {
       email: 'seller@demo.com',
       name: 'Bruno Bandeira',
-      cognitoSub: 'seller-cognito-sub-placeholder',
+      authId: 'seller-cognito-sub-placeholder',
       globalRole: 'SELLER',
       mfaEnabled: false,
       passwordHash: sellerPassword,

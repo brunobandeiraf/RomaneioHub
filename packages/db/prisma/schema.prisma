@@ -24,7 +24,7 @@ model Tenant {
 
 model User {
   id           String     @id @default(uuid())
-  cognitoSub   String     @unique
+  authId       String     @unique
   email        String     @unique
   name         String
   globalRole   GlobalRole @default(SELLER)
@@ -152,7 +152,8 @@ model Invoice {
   orderId      String
   category     InvoiceCategory @default(PURCHASE)
   filename     String
-  s3Key        String
+  storageKey   String
+  storageUrl   String?
   contentType  String
   sizeBytes    Int
   uploadedAt   DateTime        @default(now())

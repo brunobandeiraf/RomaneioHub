@@ -3,28 +3,30 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import {
-  CognitoService,
-  CognitoEmailAlreadyExistsError,
-  CognitoInvalidCodeError,
-  CognitoExpiredCodeError,
-  CognitoInvalidCredentialsError,
-  CognitoUserNotConfirmedError,
-} from './cognito.service';
+  SupabaseAuthService,
+  AuthEmailAlreadyExistsError,
+  AuthInvalidCodeError,
+  AuthExpiredCodeError,
+  AuthInvalidCredentialsError,
+  AuthUserNotConfirmedError,
+  AuthInvalidTokenError,
+} from './supabase-auth.service';
 import { PrismaService } from '../../prisma';
 import { TenantRole } from '@romaneio-hub/shared';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let cognitoService: jest.Mocked<CognitoService>;
+  let supabaseAuthService: jest.Mocked<SupabaseAuthService>;
   let prismaService: any;
 
   beforeEach(async () => {
-    const mockCognitoService = {
+    const mockSupabaseAuthService = {
       signUp: jest.fn(),
-      confirmSignUp: jest.fn(),
-      initiateAuth: jest.fn(),
-      forgotPassword: jest.fn(),
-      confirmForgotPassword: jest.fn(),
+      confirmOtp: jest.fn(),
+      signIn: jest.fn(),
+      requestPasswordReset: jest.fn(),
+      confirmPasswordReset: jest.fn(),
+      deleteUser: jest.fn(),
     };
 
     const mockPrismaService: Record<string, any> = {
@@ -45,14 +47,14 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: CognitoService, useValue: mockCognitoService },
+        { provide: SupabaseAuthService, useValue: mockSupabaseAuthService },
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    cognitoService = module.get(CognitoService);
+    supabaseAuthService = module.get(SupabaseAuthService);
     prismaService = module.get(PrismaService);
   });
 
@@ -65,8 +67,8 @@ describe('AuthService', () => {
     };
 
     it('should register a new seller successfully', async () => {
-      cognitoService.signUp.mockResolvedValue({
-        userSub: 'cognito-sub-123',
+      supabaseAuthService.signUp.mockResolvedValue({
+        authId: 'supabase-auth-id-123',
         codeDeliveryDestination: 's***@example.com',
       });
       prismaService.tenant.create.mockResolvedValue({ id: 'tenant-1', name: 'Seller Inc.' });
@@ -78,7 +80,7 @@ describe('AuthService', () => {
       expect(result.message).toContain('Registration successful');
       expect(result.userId).toBe('user-1');
       expect(result.tenantId).toBe('tenant-1');
-      expect(cognitoService.signUp).toHaveBeenCalledWith(
+      expect(supabaseAuthService.signUp).toHaveBeenCalledWith(
         validDto.email,
         validDto.password,
         validDto.name,
@@ -86,8 +88,8 @@ describe('AuthService', () => {
     });
 
     it('should create user, tenant, and userTenant with PENDING status', async () => {
-      cognitoService.signUp.mockResolvedValue({
-        userSub: 'cognito-sub-123',
+      supabaseAuthService.signUp.mockResolvedValue({
+        authId: 'supabase-auth-id-123',
         codeDeliveryDestination: 's***@example.com',
       });
       prismaService.tenant.create.mockResolvedValue({ id: 'tenant-1', name: 'Seller Inc.' });
@@ -101,7 +103,7 @@ describe('AuthService', () => {
       });
       expect(prismaService.user.create).toHaveBeenCalledWith({
         data: {
-          cognitoSub: 'cognito-sub-123',
+          authId: 'supabase-auth-id-123',
           email: validDto.email,
           name: validDto.name,
           globalRole: 'SELLER',
@@ -118,8 +120,8 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException with correct message when email already exists', async () => {
-      cognitoService.signUp.mockRejectedValue(
-        new CognitoEmailAlreadyExistsError('Email exists'),
+      supabaseAuthService.signUp.mockRejectedValue(
+        new AuthEmailAlreadyExistsError('Email exists'),
       );
 
       await expect(service.register(validDto)).rejects.toThrow(ConflictException);
@@ -132,35 +134,35 @@ describe('AuthService', () => {
       const weakDto = { ...validDto, password: 'weak' };
 
       await expect(service.register(weakDto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.signUp).not.toHaveBeenCalled();
+      expect(supabaseAuthService.signUp).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without uppercase', async () => {
       const dto = { ...validDto, password: 'nouppercas3!' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.signUp).not.toHaveBeenCalled();
+      expect(supabaseAuthService.signUp).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without lowercase', async () => {
       const dto = { ...validDto, password: 'NOLOWERCASE3!' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.signUp).not.toHaveBeenCalled();
+      expect(supabaseAuthService.signUp).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without number', async () => {
       const dto = { ...validDto, password: 'NoNumberHere!' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.signUp).not.toHaveBeenCalled();
+      expect(supabaseAuthService.signUp).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without special character', async () => {
       const dto = { ...validDto, password: 'NoSpecial1A' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.signUp).not.toHaveBeenCalled();
+      expect(supabaseAuthService.signUp).not.toHaveBeenCalled();
     });
   });
 
@@ -168,7 +170,7 @@ describe('AuthService', () => {
     const confirmDto = { email: 'seller@example.com', code: '123456' };
 
     it('should confirm and activate the user account', async () => {
-      cognitoService.confirmSignUp.mockResolvedValue(undefined);
+      supabaseAuthService.confirmOtp.mockResolvedValue(undefined);
       prismaService.user.findUnique.mockResolvedValue({
         id: 'user-1',
         tenants: [{ id: 'ut-1', status: 'PENDING' }],
@@ -178,7 +180,7 @@ describe('AuthService', () => {
       const result = await service.confirm(confirmDto);
 
       expect(result.message).toContain('confirmed successfully');
-      expect(cognitoService.confirmSignUp).toHaveBeenCalledWith(
+      expect(supabaseAuthService.confirmOtp).toHaveBeenCalledWith(
         confirmDto.email,
         confirmDto.code,
       );
@@ -189,16 +191,16 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException for invalid code', async () => {
-      cognitoService.confirmSignUp.mockRejectedValue(
-        new CognitoInvalidCodeError('Invalid code'),
+      supabaseAuthService.confirmOtp.mockRejectedValue(
+        new AuthInvalidCodeError('Invalid code'),
       );
 
       await expect(service.confirm(confirmDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for expired code', async () => {
-      cognitoService.confirmSignUp.mockRejectedValue(
-        new CognitoExpiredCodeError('Expired code'),
+      supabaseAuthService.confirmOtp.mockRejectedValue(
+        new AuthExpiredCodeError('Expired code'),
       );
 
       await expect(service.confirm(confirmDto)).rejects.toThrow(BadRequestException);
@@ -209,10 +211,9 @@ describe('AuthService', () => {
     const loginDto = { email: 'seller@example.com', password: 'StrongP@ss1' };
 
     it('should return tokens on successful login', async () => {
-      cognitoService.initiateAuth.mockResolvedValue({
+      supabaseAuthService.signIn.mockResolvedValue({
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
-        idToken: 'id-token',
         expiresIn: 3600,
       });
 
@@ -220,22 +221,21 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
-      expect(result.idToken).toBe('id-token');
       expect(result.expiresIn).toBe(3600);
       expect(result.tokenType).toBe('Bearer');
     });
 
     it('should throw UnauthorizedException for invalid credentials', async () => {
-      cognitoService.initiateAuth.mockRejectedValue(
-        new CognitoInvalidCredentialsError('Invalid credentials'),
+      supabaseAuthService.signIn.mockRejectedValue(
+        new AuthInvalidCredentialsError('Invalid credentials'),
       );
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for unconfirmed user', async () => {
-      cognitoService.initiateAuth.mockRejectedValue(
-        new CognitoUserNotConfirmedError('Not confirmed'),
+      supabaseAuthService.signIn.mockRejectedValue(
+        new AuthUserNotConfirmedError('Not confirmed'),
       );
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
@@ -244,25 +244,31 @@ describe('AuthService', () => {
 
   describe('forgotPassword', () => {
     it('should always return success message regardless of email existence (requirement 2.8)', async () => {
-      cognitoService.forgotPassword.mockResolvedValue(undefined);
+      supabaseAuthService.requestPasswordReset.mockResolvedValue(undefined);
 
       const result = await service.forgotPassword({ email: 'unknown@example.com' });
 
       expect(result.message).toContain('If an account with this email exists');
-      expect(cognitoService.forgotPassword).toHaveBeenCalledWith('unknown@example.com');
+      expect(supabaseAuthService.requestPasswordReset).toHaveBeenCalledWith(
+        'unknown@example.com',
+        expect.stringContaining('/reset-password'),
+      );
     });
 
     it('should return same generic message when email actually exists', async () => {
-      cognitoService.forgotPassword.mockResolvedValue('s***@example.com');
+      supabaseAuthService.requestPasswordReset.mockResolvedValue(undefined);
 
       const result = await service.forgotPassword({ email: 'seller@example.com' });
 
       expect(result.message).toContain('If an account with this email exists');
-      expect(cognitoService.forgotPassword).toHaveBeenCalledWith('seller@example.com');
+      expect(supabaseAuthService.requestPasswordReset).toHaveBeenCalledWith(
+        'seller@example.com',
+        expect.stringContaining('/reset-password'),
+      );
     });
 
-    it('should not throw error if cognito forgotPassword fails silently', async () => {
-      cognitoService.forgotPassword.mockResolvedValue(undefined);
+    it('should not throw error if forgotPassword fails silently', async () => {
+      supabaseAuthService.requestPasswordReset.mockResolvedValue(undefined);
 
       const result = await service.forgotPassword({ email: 'nonexistent@example.com' });
 
@@ -272,78 +278,76 @@ describe('AuthService', () => {
 
   describe('resetPassword', () => {
     const resetDto = {
-      email: 'seller@example.com',
-      code: '123456',
+      accessToken: 'valid-reset-token',
       newPassword: 'NewStr0ng!Pass',
     };
 
     it('should reset password successfully', async () => {
-      cognitoService.confirmForgotPassword.mockResolvedValue(undefined);
+      supabaseAuthService.confirmPasswordReset.mockResolvedValue(undefined);
 
       const result = await service.resetPassword(resetDto);
 
       expect(result.message).toContain('Password reset successfully');
-      expect(cognitoService.confirmForgotPassword).toHaveBeenCalledWith(
-        resetDto.email,
-        resetDto.code,
+      expect(supabaseAuthService.confirmPasswordReset).toHaveBeenCalledWith(
+        resetDto.accessToken,
         resetDto.newPassword,
       );
     });
 
     it('should throw BadRequestException for weak new password', async () => {
-      const weakDto = { ...resetDto, newPassword: 'weak' };
+      const weakDto = { accessToken: 'token', newPassword: 'weak' };
 
       await expect(service.resetPassword(weakDto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+      expect(supabaseAuthService.confirmPasswordReset).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without uppercase', async () => {
-      const dto = { ...resetDto, newPassword: 'nouppercase1!' };
+      const dto = { accessToken: 'token', newPassword: 'nouppercase1!' };
 
       await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+      expect(supabaseAuthService.confirmPasswordReset).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without lowercase', async () => {
-      const dto = { ...resetDto, newPassword: 'NOLOWERCASE1!' };
+      const dto = { accessToken: 'token', newPassword: 'NOLOWERCASE1!' };
 
       await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+      expect(supabaseAuthService.confirmPasswordReset).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without number', async () => {
-      const dto = { ...resetDto, newPassword: 'NoNumberHere!' };
+      const dto = { accessToken: 'token', newPassword: 'NoNumberHere!' };
 
       await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+      expect(supabaseAuthService.confirmPasswordReset).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without special character', async () => {
-      const dto = { ...resetDto, newPassword: 'NoSpecial1A' };
+      const dto = { accessToken: 'token', newPassword: 'NoSpecial1A' };
 
       await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
-      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+      expect(supabaseAuthService.confirmPasswordReset).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException with "Recovery code is invalid or expired" for invalid code', async () => {
-      cognitoService.confirmForgotPassword.mockRejectedValue(
-        new CognitoInvalidCodeError('Invalid code'),
+    it('should throw BadRequestException with token error message for invalid token', async () => {
+      supabaseAuthService.confirmPasswordReset.mockRejectedValue(
+        new AuthInvalidTokenError('Invalid token'),
       );
 
       await expect(service.resetPassword(resetDto)).rejects.toThrow(BadRequestException);
       await expect(service.resetPassword(resetDto)).rejects.toThrow(
-        'Recovery code is invalid or expired',
+        'Password reset token is invalid or expired',
       );
     });
 
-    it('should throw BadRequestException with "Recovery code is invalid or expired" for expired code', async () => {
-      cognitoService.confirmForgotPassword.mockRejectedValue(
-        new CognitoExpiredCodeError('Expired code'),
+    it('should throw BadRequestException for expired token', async () => {
+      supabaseAuthService.confirmPasswordReset.mockRejectedValue(
+        new AuthInvalidTokenError('Expired token'),
       );
 
       await expect(service.resetPassword(resetDto)).rejects.toThrow(BadRequestException);
       await expect(service.resetPassword(resetDto)).rejects.toThrow(
-        'Recovery code is invalid or expired',
+        'Password reset token is invalid or expired',
       );
     });
   });

@@ -1,7 +1,7 @@
 import { GlobalRole, TenantRole } from '@romaneio-hub/shared';
 
 export interface RequestUser {
-  userId: string;
+  authId: string;
   tenantId: string;
   globalRole: GlobalRole;
   tenantRole: TenantRole;

@@ -1,9 +1,9 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: comprashub-postgres
+    container_name: romaneio-hub-postgres
     environment:
-      POSTGRES_DB: comprashub
+      POSTGRES_DB: romaneio_hub
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -11,56 +11,32 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d comprashub']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d romaneio_hub']
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
 
-  localstack:
-    image: localstack/localstack:3.8
-    container_name: comprashub-localstack
-    environment:
-      SERVICES: s3
-      DEFAULT_REGION: us-east-1
-    ports:
-      - '4566:4566'
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:4566/_localstack/health || exit 1']
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile.dev
-    container_name: comprashub-api
+    container_name: romaneio-hub-api
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/comprashub
-      AWS_ENDPOINT: http://localstack:4566
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_REGION: us-east-1
-      S3_BUCKET: invoices-dev
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/romaneio_hub
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       CORS_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
       NODE_ENV: development
     ports:
       - '3001:3001'
     depends_on:
       postgres:
         condition: service_healthy
-      localstack:
-        condition: service_healthy
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:3001/health || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./packages:/app/packages
@@ -70,28 +46,28 @@ services:
 
   stripe-cli:
     image: stripe/stripe-cli:latest
-    container_name: comprashub-stripe-cli
+    container_name: romaneio-hub-stripe-cli
     command: listen --forward-to http://api:3001/subscriptions/webhook
     environment:
       STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
     depends_on:
-      api:
-        condition: service_healthy
+      - api
     restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile.dev
-    container_name: comprashub-web
+    container_name: romaneio-hub-web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       NODE_ENV: development
     ports:
       - '3000:3000'
     depends_on:
-      api:
-        condition: service_healthy
+      - api
     volumes:
       - ./apps/web/src:/app/apps/web/src
       - ./packages:/app/packages

@@ -3,7 +3,7 @@ import * as fc from 'fast-check';
 import { InvoicesService } from './invoices.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
-import { S3Service } from './s3.service';
+import { SupabaseStorageService } from './supabase-storage.service';
 
 /**
  * Property 8: Presigned URL Security
@@ -38,9 +38,9 @@ describe('Property 8: Presigned URL Security', () => {
   };
 
   const mockS3Service = {
-    generatePresignedPutUrl: jest
+    createSignedUploadUrl: jest
       .fn()
-      .mockResolvedValue('https://s3.amazonaws.com/bucket/presigned-url'),
+      .mockResolvedValue('https://storage.supabase.co/bucket/presigned-url'),
   };
 
   beforeEach(async () => {
@@ -49,7 +49,7 @@ describe('Property 8: Presigned URL Security', () => {
         InvoicesService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: TenantContext, useValue: mockTenantContext },
-        { provide: S3Service, useValue: mockS3Service },
+        { provide: SupabaseStorageService, useValue: mockS3Service },
       ],
     }).compile();
 
@@ -63,8 +63,8 @@ describe('Property 8: Presigned URL Security', () => {
       tenantId: 'tenant-1',
       _count: { invoices: 0 },
     });
-    mockS3Service.generatePresignedPutUrl.mockResolvedValue(
-      'https://s3.amazonaws.com/bucket/presigned-url',
+    mockS3Service.createSignedUploadUrl.mockResolvedValue(
+      'https://storage.supabase.co/bucket/presigned-url',
     );
   });
 
@@ -98,7 +98,7 @@ describe('Property 8: Presigned URL Security', () => {
           );
 
           const expectedKey = `notas-fiscais/${tenantId}/${orderId}/${filename}`;
-          expect(result.s3Key).toBe(expectedKey);
+          expect(result.storageKey).toBe(expectedKey);
         },
       ),
       { numRuns: 100 },
@@ -121,8 +121,8 @@ describe('Property 8: Presigned URL Security', () => {
             2048,
           );
 
-          // Extract tenant_id from the S3 key
-          const keyParts = result.s3Key.split('/');
+          // Extract tenant_id from the storage key
+          const keyParts = result.storageKey.split('/');
           const tenantIdInKey = keyParts[1];
 
           expect(tenantIdInKey).toBe(tenantId);
@@ -148,7 +148,7 @@ describe('Property 8: Presigned URL Security', () => {
             512,
           );
 
-          expect(result.s3Key).not.toContain('..');
+          expect(result.storageKey).not.toContain('..');
         },
       ),
       { numRuns: 100 },
@@ -176,7 +176,7 @@ describe('Property 8: Presigned URL Security', () => {
           );
 
           // The key should contain the requesting tenant's ID, not the other tenant's
-          const keyParts = result.s3Key.split('/');
+          const keyParts = result.storageKey.split('/');
           const tenantIdInKey = keyParts[1];
 
           expect(tenantIdInKey).toBe(tenantId);
@@ -203,7 +203,7 @@ describe('Property 8: Presigned URL Security', () => {
             8192,
           );
 
-          const keyParts = result.s3Key.split('/');
+          const keyParts = result.storageKey.split('/');
           expect(keyParts).toHaveLength(4);
           expect(keyParts[0]).toBe('notas-fiscais');
           expect(keyParts[1]).toBe(tenantId);

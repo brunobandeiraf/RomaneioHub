@@ -79,8 +79,8 @@ export const VALID_SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, Subscrip
   [SubscriptionStatus.CANCELLED]: [],
 };
 
-/** S3 key pattern for invoice files */
-export const INVOICE_S3_KEY_PREFIX = 'notas-fiscais';
+/** Storage key prefix for invoice files */
+export const INVOICE_STORAGE_KEY_PREFIX = 'notas-fiscais';
 
 /** Models that are scoped by tenant */
 export const TENANT_SCOPED_MODELS = [

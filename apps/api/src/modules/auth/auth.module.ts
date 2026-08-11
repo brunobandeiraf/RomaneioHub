@@ -4,12 +4,12 @@ import { PrismaModule } from '../../prisma';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { DevAuthService } from './dev-auth.service';
-import { CognitoService } from './cognito.service';
+import { SupabaseAuthService } from './supabase-auth.service';
 
 @Module({
   imports: [ConfigModule, PrismaModule],
   controllers: [AuthController],
-  providers: [AuthService, DevAuthService, CognitoService],
-  exports: [AuthService, DevAuthService, CognitoService],
+  providers: [AuthService, DevAuthService, SupabaseAuthService],
+  exports: [AuthService, DevAuthService, SupabaseAuthService],
 })
 export class AuthModule {}

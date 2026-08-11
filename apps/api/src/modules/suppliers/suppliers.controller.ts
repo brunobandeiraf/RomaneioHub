@@ -64,7 +64,7 @@ export class SuppliersController {
     @Body() dto: CreateSupplierDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.suppliersService.create(dto, user.userId);
+    return this.suppliersService.create(dto, user.authId);
   }
 
   /**
@@ -78,7 +78,7 @@ export class SuppliersController {
     @Body() dto: UpdateSupplierDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.suppliersService.update(id, dto, user.userId);
+    return this.suppliersService.update(id, dto, user.authId);
   }
 
   /**

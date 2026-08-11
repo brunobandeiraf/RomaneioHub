@@ -15,7 +15,7 @@ export class RegisterInvoiceDto {
   filename!: string;
 
   @IsString()
-  s3Key!: string;
+  storageKey!: string;
 
   @IsString()
   @IsIn([...ALLOWED_INVOICE_CONTENT_TYPES])

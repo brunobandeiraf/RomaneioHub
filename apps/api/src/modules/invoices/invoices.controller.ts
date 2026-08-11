@@ -67,7 +67,7 @@ export class InvoicesController {
       orderId,
       file,
       (category as any) || 'PURCHASE',
-      user.userId,
+      user.authId,
     );
   }
 
@@ -81,7 +81,7 @@ export class InvoicesController {
     @Body() dto: RegisterInvoiceDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.invoicesService.registerInvoice(orderId, dto, user.userId);
+    return this.invoicesService.registerInvoice(orderId, dto, user.authId);
   }
 
   /**
@@ -105,10 +105,8 @@ export class InvoicesController {
     @Query('_') _cacheBuster: string,
     @Res() res: any,
   ) {
-    const { stream, contentType, filename } = await this.invoicesService.getFileStream(orderId, invoiceId);
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    stream.pipe(res);
+    const { signedUrl } = await this.invoicesService.getFileStream(orderId, invoiceId);
+    res.redirect(signedUrl);
   }
 
   /**

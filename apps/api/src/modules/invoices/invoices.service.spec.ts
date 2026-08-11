@@ -7,13 +7,13 @@ import {
   PRESIGNED_URL_EXPIRY_SECONDS,
 } from '@romaneio-hub/shared';
 import { InvoicesService } from './invoices.service';
-import { S3Service } from './s3.service';
+import { SupabaseStorageService } from './supabase-storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
 
 describe('InvoicesService', () => {
   let service: InvoicesService;
-  let s3Service: jest.Mocked<S3Service>;
+  let storageService: jest.Mocked<SupabaseStorageService>;
   let prismaService: any;
   let tenantContext: jest.Mocked<TenantContext>;
 
@@ -35,9 +35,10 @@ describe('InvoicesService', () => {
       },
     };
 
-    const mockS3Service = {
-      generatePresignedPutUrl: jest.fn(),
-      generatePresignedGetUrl: jest.fn(),
+    const mockStorageService = {
+      createSignedUploadUrl: jest.fn(),
+      createSignedUrl: jest.fn(),
+      remove: jest.fn(),
     };
 
     const mockTenantContext = {
@@ -48,25 +49,25 @@ describe('InvoicesService', () => {
       providers: [
         InvoicesService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: S3Service, useValue: mockS3Service },
+        { provide: SupabaseStorageService, useValue: mockStorageService },
         { provide: TenantContext, useValue: mockTenantContext },
       ],
     }).compile();
 
     service = module.get<InvoicesService>(InvoicesService);
-    s3Service = module.get(S3Service);
+    storageService = module.get(SupabaseStorageService);
     prismaService = module.get(PrismaService);
     tenantContext = module.get(TenantContext);
   });
 
   describe('generateUploadUrl', () => {
     it('should generate a presigned PUT URL for a valid request', async () => {
-      const mockUrl = 'https://s3.amazonaws.com/presigned-put-url';
+      const mockUrl = 'https://storage.supabase.co/presigned-upload-url';
       prismaService.extended.order.findFirst.mockResolvedValue({
         id: mockOrderId,
         _count: { invoices: 3 },
       });
-      s3Service.generatePresignedPutUrl.mockResolvedValue(mockUrl);
+      storageService.createSignedUploadUrl.mockResolvedValue(mockUrl);
 
       const result = await service.generateUploadUrl(
         mockOrderId,
@@ -76,14 +77,12 @@ describe('InvoicesService', () => {
       );
 
       expect(result.url).toBe(mockUrl);
-      expect(result.s3Key).toBe(
+      expect(result.storageKey).toBe(
         `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
       );
       expect(result.expiresIn).toBe(PRESIGNED_URL_EXPIRY_SECONDS);
-      expect(s3Service.generatePresignedPutUrl).toHaveBeenCalledWith(
+      expect(storageService.createSignedUploadUrl).toHaveBeenCalledWith(
         `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
-        'application/pdf',
-        PRESIGNED_URL_EXPIRY_SECONDS,
       );
     });
 
@@ -143,7 +142,7 @@ describe('InvoicesService', () => {
         id: mockOrderId,
         _count: { invoices: 0 },
       });
-      s3Service.generatePresignedPutUrl.mockResolvedValue('https://url');
+      storageService.createSignedUploadUrl.mockResolvedValue('https://url');
 
       for (const contentType of ALLOWED_INVOICE_CONTENT_TYPES) {
         const result = await service.generateUploadUrl(
@@ -160,7 +159,7 @@ describe('InvoicesService', () => {
   describe('registerInvoice', () => {
     const dto = {
       filename: 'invoice.pdf',
-      s3Key: `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
+      storageKey: `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
       contentType: 'application/pdf',
       sizeBytes: 2048,
     };
@@ -180,10 +179,11 @@ describe('InvoicesService', () => {
         data: {
           orderId: mockOrderId,
           filename: dto.filename,
-          s3Key: dto.s3Key,
+          storageKey: dto.storageKey,
           contentType: dto.contentType,
           sizeBytes: dto.sizeBytes,
           uploadedById: mockUserId,
+          category: 'PURCHASE',
         },
       });
     });
@@ -243,23 +243,23 @@ describe('InvoicesService', () => {
         id: 'inv-1',
         orderId: mockOrderId,
         filename: 'invoice.pdf',
-        s3Key: `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
+        storageKey: `notas-fiscais/${mockTenantId}/${mockOrderId}/invoice.pdf`,
       };
       prismaService.extended.order.findFirst.mockResolvedValue({
         id: mockOrderId,
       });
       prismaService.invoice.findFirst.mockResolvedValue(mockInvoice);
-      s3Service.generatePresignedGetUrl.mockResolvedValue(
-        'https://s3.amazonaws.com/presigned-get-url',
+      storageService.createSignedUrl.mockResolvedValue(
+        'https://storage.supabase.co/presigned-get-url',
       );
 
       const result = await service.generateDownloadUrl(mockOrderId, 'inv-1');
 
-      expect(result.url).toBe('https://s3.amazonaws.com/presigned-get-url');
+      expect(result.url).toBe('https://storage.supabase.co/presigned-get-url');
       expect(result.filename).toBe('invoice.pdf');
       expect(result.expiresIn).toBe(PRESIGNED_URL_EXPIRY_SECONDS);
-      expect(s3Service.generatePresignedGetUrl).toHaveBeenCalledWith(
-        mockInvoice.s3Key,
+      expect(storageService.createSignedUrl).toHaveBeenCalledWith(
+        mockInvoice.storageKey,
         PRESIGNED_URL_EXPIRY_SECONDS,
       );
     });

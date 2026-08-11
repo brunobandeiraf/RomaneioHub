@@ -12,13 +12,14 @@ import { validatePasswordStrength } from '@romaneio-hub/shared';
 import { TenantRole } from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma';
 import {
-  CognitoService,
-  CognitoEmailAlreadyExistsError,
-  CognitoInvalidCodeError,
-  CognitoExpiredCodeError,
-  CognitoInvalidCredentialsError,
-  CognitoUserNotConfirmedError,
-} from './cognito.service';
+  SupabaseAuthService,
+  AuthEmailAlreadyExistsError,
+  AuthInvalidCodeError,
+  AuthExpiredCodeError,
+  AuthInvalidCredentialsError,
+  AuthUserNotConfirmedError,
+  AuthInvalidTokenError,
+} from './supabase-auth.service';
 import { RegisterDto, ConfirmDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, InviteDto, AcceptInviteDto } from './dto';
 
 @Injectable()
@@ -26,14 +27,14 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly cognitoService: CognitoService,
+    private readonly supabaseAuthService: SupabaseAuthService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
 
   /**
    * Register a new Seller account.
-   * Creates the user in Cognito (sends confirmation email)
+   * Creates the user in Supabase Auth (sends confirmation email)
    * and stores the user + tenant + association in the database.
    */
   async register(dto: RegisterDto) {
@@ -43,9 +44,11 @@ export class AuthService {
       throw new BadRequestException(passwordValidation.errors);
     }
 
+    let authResult: Awaited<ReturnType<SupabaseAuthService['signUp']>> | null = null;
+
     try {
-      // Create user in Cognito — will send confirmation email
-      const cognitoResult = await this.cognitoService.signUp(
+      // Create user in Supabase Auth — will send confirmation email
+      authResult = await this.supabaseAuthService.signUp(
         dto.email,
         dto.password,
         dto.name,
@@ -61,7 +64,7 @@ export class AuthService {
 
         const user = await tx.user.create({
           data: {
-            cognitoSub: cognitoResult.userSub,
+            authId: authResult!.authId,
             email: dto.email,
             name: dto.name,
             globalRole: 'SELLER',
@@ -84,12 +87,24 @@ export class AuthService {
         message: 'Registration successful. Please check your email for the confirmation code.',
         userId: result.user.id,
         tenantId: result.tenant.id,
-        codeDeliveryDestination: cognitoResult.codeDeliveryDestination,
+        codeDeliveryDestination: authResult.codeDeliveryDestination,
       };
     } catch (error) {
-      if (error instanceof CognitoEmailAlreadyExistsError) {
+      if (error instanceof AuthEmailAlreadyExistsError) {
         throw new ConflictException('An account with this email already exists');
       }
+
+      // Rollback: if Supabase user was created but DB transaction failed, delete the auth user
+      if (authResult && !(error instanceof ConflictException)) {
+        try {
+          await this.supabaseAuthService.deleteUser(authResult.authId);
+        } catch (rollbackError) {
+          this.logger.error(
+            `Failed to rollback Supabase user ${authResult.authId}: ${(rollbackError as Error).message}`,
+          );
+        }
+      }
+
       throw error;
     }
   }
@@ -100,7 +115,7 @@ export class AuthService {
    */
   async confirm(dto: ConfirmDto) {
     try {
-      await this.cognitoService.confirmSignUp(dto.email, dto.code);
+      await this.supabaseAuthService.confirmOtp(dto.email, dto.code);
 
       // Activate the user's tenant association
       const user = await this.prisma.user.findUnique({
@@ -125,10 +140,10 @@ export class AuthService {
         message: 'Email confirmed successfully. You can now log in.',
       };
     } catch (error) {
-      if (error instanceof CognitoInvalidCodeError) {
+      if (error instanceof AuthInvalidCodeError) {
         throw new BadRequestException('The verification code is invalid');
       }
-      if (error instanceof CognitoExpiredCodeError) {
+      if (error instanceof AuthExpiredCodeError) {
         throw new BadRequestException(
           'The verification code has expired. Please request a new one',
         );
@@ -139,11 +154,11 @@ export class AuthService {
 
   /**
    * Authenticate a user and return JWT tokens.
-   * Returns access token (1h), refresh token (30d), and id token.
+   * Returns access token, refresh token and expiry.
    */
   async login(dto: LoginDto) {
     try {
-      const tokens = await this.cognitoService.initiateAuth(
+      const tokens = await this.supabaseAuthService.signIn(
         dto.email,
         dto.password,
       );
@@ -151,15 +166,14 @@ export class AuthService {
       return {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-        idToken: tokens.idToken,
         expiresIn: tokens.expiresIn,
         tokenType: 'Bearer',
       };
     } catch (error) {
-      if (error instanceof CognitoInvalidCredentialsError) {
+      if (error instanceof AuthInvalidCredentialsError) {
         throw new UnauthorizedException('Invalid email or password');
       }
-      if (error instanceof CognitoUserNotConfirmedError) {
+      if (error instanceof AuthUserNotConfirmedError) {
         throw new UnauthorizedException(
           'Account not confirmed. Please check your email for the confirmation code',
         );
@@ -169,20 +183,21 @@ export class AuthService {
   }
 
   /**
-   * Send a password recovery code to the user's email.
+   * Send a password recovery link to the user's email.
    * Always returns success to prevent email enumeration.
    */
   async forgotPassword(dto: ForgotPasswordDto) {
-    await this.cognitoService.forgotPassword(dto.email);
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    await this.supabaseAuthService.requestPasswordReset(dto.email, frontendUrl + '/reset-password');
 
     return {
       message:
-        'If an account with this email exists, a verification code has been sent.',
+        'If an account with this email exists, a password reset link has been sent.',
     };
   }
 
   /**
-   * Reset password using the verification code.
+   * Reset password using the access token from the reset link.
    * Validates the new password against the strong password policy.
    */
   async resetPassword(dto: ResetPasswordDto) {
@@ -193,9 +208,8 @@ export class AuthService {
     }
 
     try {
-      await this.cognitoService.confirmForgotPassword(
-        dto.email,
-        dto.code,
+      await this.supabaseAuthService.confirmPasswordReset(
+        dto.accessToken,
         dto.newPassword,
       );
 
@@ -203,8 +217,8 @@ export class AuthService {
         message: 'Password reset successfully. You can now log in with your new password.',
       };
     } catch (error) {
-      if (error instanceof CognitoInvalidCodeError || error instanceof CognitoExpiredCodeError) {
-        throw new BadRequestException('Recovery code is invalid or expired');
+      if (error instanceof AuthInvalidTokenError) {
+        throw new BadRequestException('Password reset token is invalid or expired');
       }
       throw error;
     }
@@ -244,7 +258,7 @@ export class AuthService {
     if (!invitedUser) {
       invitedUser = await this.prisma.user.create({
         data: {
-          cognitoSub: `pending-${randomUUID()}`,
+          authId: `pending-${randomUUID()}`,
           email: dto.email,
           name: dto.email.split('@')[0],
           globalRole: 'SELLER',

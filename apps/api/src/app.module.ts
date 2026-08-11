@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
-import { SecretsModule } from './config';
 import { PrismaModule } from './prisma';
 import { JwtAuthGuard, TenantGuard, SubscriptionGuard } from './common/guards';
 import { TenantContextInterceptor } from './common/interceptors';
@@ -20,7 +19,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    SecretsModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {

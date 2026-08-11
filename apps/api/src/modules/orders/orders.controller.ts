@@ -63,7 +63,7 @@ export class OrdersController {
     @Body() dto: CreateOrderDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.ordersService.create(dto, user.userId);
+    return this.ordersService.create(dto, user.authId);
   }
 
   /**
@@ -77,7 +77,7 @@ export class OrdersController {
     @Body() dto: UpdateOrderDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.ordersService.update(id, dto, user.userId);
+    return this.ordersService.update(id, dto, user.authId);
   }
 
   /**
@@ -92,7 +92,7 @@ export class OrdersController {
     @Body() dto: UpdateOrderStatusDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.ordersService.updateStatus(id, dto.status, user.userId);
+    return this.ordersService.updateStatus(id, dto.status, user.authId);
   }
 
   /**

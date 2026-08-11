@@ -12,7 +12,7 @@ export interface OrderItem {
 export interface Invoice {
   id: string;
   filename: string;
-  s3Key: string;
+  storageKey: string;
   contentType: string;
   sizeBytes: number;
   uploadedAt: string;
@@ -71,7 +71,7 @@ export interface UpdateOrderStatusInput {
 
 export interface UploadUrlResponse {
   uploadUrl: string;
-  s3Key: string;
+  storageKey: string;
 }
 
 export interface Supplier {
