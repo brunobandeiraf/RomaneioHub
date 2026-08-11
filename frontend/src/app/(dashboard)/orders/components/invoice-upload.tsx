@@ -87,7 +87,7 @@ export function InvoiceUpload({ orderId, onSuccess }: InvoiceUploadProps) {
     try {
       // Step 1: Get presigned URL
       setState('uploading');
-      const { uploadUrl, s3Key } = await getUploadUrl.mutateAsync({
+      const { uploadUrl, storageKey } = await getUploadUrl.mutateAsync({
         filename: selectedFile.name,
         contentType: selectedFile.type,
         sizeBytes: selectedFile.size,
@@ -123,7 +123,7 @@ export function InvoiceUpload({ orderId, onSuccess }: InvoiceUploadProps) {
       setState('registering');
       await registerInvoice.mutateAsync({
         filename: selectedFile.name,
-        s3Key,
+        storageKey,
         contentType: selectedFile.type,
         sizeBytes: selectedFile.size,
       });

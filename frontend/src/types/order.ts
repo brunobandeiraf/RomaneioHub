@@ -3,6 +3,11 @@ export type OrderStatus = 'DRAFT' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED';
 export interface OrderItem {
   id: string;
   productId: string;
+  product?: {
+    id: string;
+    nome: string;
+    unidade: string;
+  };
   productName?: string;
   quantidade: number;
   precoUnit: number;
@@ -24,6 +29,11 @@ export interface Order {
   tenantId: string;
   supplierId: string;
   supplierName?: string;
+  supplier?: {
+    id: string;
+    razaoSocial: string;
+    nomeFantasia?: string;
+  };
   date: string;
   status: OrderStatus;
   total: number;
