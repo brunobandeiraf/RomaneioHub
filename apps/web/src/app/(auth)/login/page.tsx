@@ -38,7 +38,23 @@ export default function LoginPage() {
       { email, password },
       {
         onSuccess: (data) => {
-          setAuthState(data.accessToken, data.refreshToken, data.user);
+          // Decode user info from JWT payload (Supabase puts claims in app_metadata)
+          let userData = data.user;
+          if (!userData && data.accessToken) {
+            try {
+              const payload = JSON.parse(atob(data.accessToken.split('.')[1]));
+              const meta = payload.app_metadata || {};
+              userData = {
+                id: payload.sub || '',
+                email: payload.email || '',
+                name: payload.user_metadata?.name || payload.name || '',
+                role: meta.tenantRole || meta.globalRole || 'SELLER',
+              };
+            } catch {
+              userData = { id: '', email: '', name: '', role: 'SELLER' };
+            }
+          }
+          setAuthState(data.accessToken, data.refreshToken, userData!);
           router.push('/');
         },
       }

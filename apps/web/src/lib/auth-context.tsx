@@ -47,11 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Try to decode user info from JWT payload
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        // Supabase puts custom claims inside app_metadata
+        const meta = payload.app_metadata || {};
         setUser({
-          id: payload.sub || payload.userId || '',
+          id: payload.sub || '',
           email: payload.email || '',
-          name: payload.name || '',
-          role: payload.role || payload.globalRole || '',
+          name: payload.user_metadata?.name || payload.name || '',
+          role: meta.tenantRole || meta.globalRole || payload.globalRole || '',
         });
       } catch {
         // Invalid token — clear and redirect

@@ -4,8 +4,8 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-const TOKEN_KEY = 'compras_hub_access_token';
-const REFRESH_TOKEN_KEY = 'compras_hub_refresh_token';
+const TOKEN_KEY = 'romaneio_hub_access_token';
+const REFRESH_TOKEN_KEY = 'romaneio_hub_refresh_token';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

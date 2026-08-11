@@ -2,13 +2,11 @@
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForgotPassword } from '@/hooks/use-auth';
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const forgotPassword = useForgotPassword();
 
   const [email, setEmail] = useState('');
@@ -43,17 +41,18 @@ export default function ForgotPasswordPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-white">Código enviado!</h2>
+        <h2 className="text-2xl font-bold text-white">Link enviado!</h2>
         <p className="text-sm text-brand-muted">
           Se o e-mail <strong className="text-white">{email}</strong> estiver cadastrado,
-          você receberá um código de 6 dígitos válido por 15 minutos.
+          você receberá um link de recuperação válido por 15 minutos.
+          Clique no link do e-mail para redefinir sua senha.
         </p>
-        <Button
-          className="w-full"
-          onClick={() => router.push(`/reset-password?email=${encodeURIComponent(email)}`)}
+        <Link
+          href="/login"
+          className="inline-block rounded-lg bg-brand-gold px-4 py-2.5 text-sm font-medium text-brand-dark hover:bg-brand-gold-hover transition-all"
         >
-          Inserir código
-        </Button>
+          Voltar para o login
+        </Link>
       </div>
     );
   }
@@ -63,7 +62,7 @@ export default function ForgotPasswordPage() {
       <div>
         <h2 className="text-3xl font-bold text-white">Recuperar senha</h2>
         <p className="mt-2 text-sm text-brand-muted">
-          Informe seu e-mail e enviaremos um código de verificação.
+          Informe seu e-mail e enviaremos um link de recuperação.
         </p>
       </div>
 
@@ -79,7 +78,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <Button type="submit" className="w-full" loading={forgotPassword.isPending}>
-          Enviar código
+          Enviar link de recuperação
         </Button>
       </form>
 

@@ -13,7 +13,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  user: {
+  expiresIn: number;
+  tokenType: string;
+  // Present in dev mode (DevAuthService), absent in production (Supabase Auth)
+  user?: {
     id: string;
     email: string;
     name: string;
@@ -41,8 +44,7 @@ export interface ForgotPasswordResponse {
 }
 
 export interface ResetPasswordRequest {
-  email: string;
-  code: string;
+  accessToken: string;
   newPassword: string;
 }
 
