@@ -23,14 +23,15 @@ model Tenant {
 }
 
 model User {
-  id         String     @id @default(uuid())
-  cognitoSub String     @unique
-  email      String     @unique
-  name       String
-  globalRole GlobalRole @default(SELLER)
-  mfaEnabled Boolean    @default(false)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id           String     @id @default(uuid())
+  cognitoSub   String     @unique
+  email        String     @unique
+  name         String
+  globalRole   GlobalRole @default(SELLER)
+  mfaEnabled   Boolean    @default(false)
+  passwordHash String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   tenants      UserTenant[]
   auditRecords AuditLog[]
@@ -147,18 +148,25 @@ model OrderItem {
 }
 
 model Invoice {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   orderId      String
+  category     InvoiceCategory @default(PURCHASE)
   filename     String
   s3Key        String
   contentType  String
   sizeBytes    Int
-  uploadedAt   DateTime @default(now())
+  uploadedAt   DateTime        @default(now())
   uploadedById String
 
   order Order @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
+}
+
+enum InvoiceCategory {
+  PURCHASE
+  COLLECTION
+  WAYBILL
 }
 
 model AuditLog {

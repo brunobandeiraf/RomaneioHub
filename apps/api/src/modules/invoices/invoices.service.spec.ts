@@ -5,7 +5,7 @@ import {
   MAX_INVOICE_FILE_SIZE,
   MAX_INVOICES_PER_ORDER,
   PRESIGNED_URL_EXPIRY_SECONDS,
-} from '@compras-hub/shared';
+} from '@romaneio-hub/shared';
 import { InvoicesService } from './invoices.service';
 import { S3Service } from './s3.service';
 import { PrismaService } from '../../prisma/prisma.service';

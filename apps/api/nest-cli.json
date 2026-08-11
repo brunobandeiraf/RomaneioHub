@@ -2,7 +2,6 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "builder": "esbuild",
-    "typeCheck": true
+    "deleteOutDir": true
   }
 }

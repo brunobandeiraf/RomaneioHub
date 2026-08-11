@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================================
-# ComprasHub API - Development Entrypoint
+# RomaneioHub API - Development Entrypoint
 # =============================================================================
 # Startup sequence:
 #   1. Wait for PostgreSQL to be ready
@@ -11,7 +11,7 @@
 
 set -e
 
-echo "🚀 ComprasHub API - Development Startup"
+echo "🚀 RomaneioHub API - Development Startup"
 echo "========================================="
 
 # Wait for PostgreSQL to be ready
@@ -49,4 +49,4 @@ echo "✅ Database seeded successfully!"
 # Start the NestJS dev server with hot-reload
 echo ""
 echo "🔥 Starting NestJS dev server with hot-reload..."
-exec npm run dev --workspace=@compras-hub/api
+exec npm run dev --workspace=@romaneio-hub/api

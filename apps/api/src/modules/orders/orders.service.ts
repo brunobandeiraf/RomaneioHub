@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@compras-hub/db';
+import { Prisma } from '@romaneio-hub/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   DEFAULT_PAGE_SIZE,
@@ -11,7 +11,7 @@ import {
   MIN_ORDER_ITEMS,
   OrderStatus,
   VALID_ORDER_TRANSITIONS,
-} from '@compras-hub/shared';
+} from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -273,7 +273,7 @@ export class OrdersService {
    * - CONFIRMED → DELIVERED
    * - CONFIRMED → CANCELLED
    *
-   * Invalid transitions throw BadRequestException with current and attempted status.
+   * Allows any status change.
    */
   async updateStatus(orderId: string, newStatus: OrderStatus, userId: string) {
     // Fetch the current order within tenant scope
@@ -285,17 +285,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    const currentStatus = order.status as OrderStatus;
-
-    // Check if the transition is valid
-    const allowedTransitions = VALID_ORDER_TRANSITIONS[currentStatus];
-    if (!allowedTransitions || !allowedTransitions.includes(newStatus)) {
-      throw new BadRequestException(
-        `Invalid status transition from ${currentStatus} to ${newStatus}`,
-      );
-    }
-
-    // Update the order status
+    // Update the order status (any transition allowed)
     return this.prisma.extended.order.update({
       where: { id: orderId },
       data: {

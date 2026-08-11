@@ -19,7 +19,7 @@ In development, secrets are loaded from `.env` files (gitignored).
 
 1. **Production**: The `SecretsModule` runs `onModuleInit` and fetches all secrets from
    AWS Secrets Manager using the secret name configured in `AWS_SECRET_NAME`
-   (defaults to `compras-hub/production`). Secrets are injected into `process.env` before
+   (defaults to `romaneio-hub/production`). Secrets are injected into `process.env` before
    other modules initialize.
 
 2. **Development**: The `SecretsModule` detects `NODE_ENV !== 'production'` and skips
@@ -65,7 +65,7 @@ This ensures that even if the application code is compromised, MFA cannot be byp
 3. **Production Deployment (Terraform)**:
    ```hcl
    resource "aws_cognito_user_pool" "main" {
-     name = "compras-hub-${var.environment}"
+     name = "romaneio-hub-${var.environment}"
 
      mfa_configuration = "OPTIONAL"
 

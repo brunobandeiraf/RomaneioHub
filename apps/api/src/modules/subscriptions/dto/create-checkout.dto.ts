@@ -2,12 +2,13 @@ import { IsEnum } from 'class-validator';
 
 export enum SubscriptionPlan {
   MONTHLY = 'monthly',
+  SEMIANNUAL = 'semiannual',
   ANNUAL = 'annual',
 }
 
 export class CreateCheckoutDto {
   @IsEnum(SubscriptionPlan, {
-    message: 'plan must be either "monthly" or "annual"',
+    message: 'planType must be "monthly", "semiannual", or "annual"',
   })
-  plan!: SubscriptionPlan;
+  planType!: SubscriptionPlan;
 }

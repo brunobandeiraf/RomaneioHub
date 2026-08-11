@@ -4,6 +4,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -24,6 +25,12 @@ export class S3Service {
       ...(endpoint && {
         endpoint,
         forcePathStyle: true,
+        credentials: {
+          accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID') || 'test',
+          secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY') || 'test',
+        },
+        requestChecksumCalculation: 'WHEN_REQUIRED' as any,
+        responseChecksumValidation: 'WHEN_REQUIRED' as any,
       }),
     });
   }
@@ -42,7 +49,9 @@ export class S3Service {
       ContentType: contentType,
     });
 
-    return getSignedUrl(this.client, command, { expiresIn });
+    return getSignedUrl(this.client, command, {
+      expiresIn,
+    });
   }
 
   /**
@@ -58,5 +67,44 @@ export class S3Service {
     });
 
     return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  /**
+   * Upload a file buffer directly to S3.
+   */
+  async uploadFile(key: string, body: Buffer, contentType: string): Promise<void> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Delete a file from S3.
+   */
+  async deleteFile(key: string): Promise<void> {
+    const command = new DeleteObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    await this.client.send(command);
+  }
+
+  /**
+   * Get a readable stream for a file from S3.
+   */
+  async getFileStream(key: string): Promise<NodeJS.ReadableStream> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const response = await this.client.send(command);
+    return response.Body as NodeJS.ReadableStream;
   }
 }

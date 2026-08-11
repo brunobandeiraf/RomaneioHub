@@ -4,7 +4,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { validateCnpj } from '@compras-hub/shared';
+import { validateCnpj } from '@romaneio-hub/shared';
 
 @ValidatorConstraint({ name: 'isCnpj', async: false })
 export class IsCnpjConstraint implements ValidatorConstraintInterface {
@@ -20,7 +20,7 @@ export class IsCnpjConstraint implements ValidatorConstraintInterface {
 
 /**
  * Custom class-validator decorator that validates CNPJ format and check digits.
- * Uses validateCnpj from @compras-hub/shared.
+ * Uses validateCnpj from @romaneio-hub/shared.
  */
 export function IsCnpj(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {

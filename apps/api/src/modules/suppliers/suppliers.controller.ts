@@ -8,7 +8,7 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { TenantRole } from '@compras-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 import { Auditable, Roles, CurrentUser } from '../../common/decorators';
 import { RequestUser } from '../../common/interfaces';
 import { SuppliersService, ListSuppliersParams } from './suppliers.service';

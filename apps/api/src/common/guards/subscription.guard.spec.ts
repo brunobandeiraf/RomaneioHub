@@ -1,6 +1,6 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GlobalRole, SubscriptionStatus } from '@compras-hub/shared';
+import { GlobalRole, SubscriptionStatus } from '@romaneio-hub/shared';
 import { SubscriptionGuard } from './subscription.guard';
 
 describe('SubscriptionGuard', () => {

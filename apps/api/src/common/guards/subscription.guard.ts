@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GlobalRole, SubscriptionStatus } from '@compras-hub/shared';
+import { GlobalRole, SubscriptionStatus } from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SKIP_SUBSCRIPTION_CHECK_KEY } from '../decorators/skip-subscription-check.decorator';
 

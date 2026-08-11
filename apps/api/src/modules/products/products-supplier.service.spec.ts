@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Prisma } from '@compras-hub/db';
+import { Prisma } from '@romaneio-hub/db';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../../prisma/prisma.service';
 

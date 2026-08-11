@@ -1,6 +1,8 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { DashboardPurchase, PurchasesResponse } from '@/hooks/use-dashboard';
+import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 
 interface PurchasesListProps {
@@ -27,26 +29,26 @@ const STATUS_OPTIONS = [
 function getStatusBadgeClass(status: string): string {
   switch (status) {
     case 'DRAFT':
-      return 'bg-gray-100 text-gray-700';
+      return 'bg-amber-500 text-white';
     case 'CONFIRMED':
-      return 'bg-blue-100 text-blue-700';
+      return 'bg-blue-500 text-white';
     case 'DELIVERED':
-      return 'bg-green-100 text-green-700';
+      return 'bg-emerald-700 text-white';
     case 'CANCELLED':
-      return 'bg-red-100 text-red-700';
+      return 'bg-red-500 text-white';
     default:
-      return 'bg-gray-100 text-gray-700';
+      return 'bg-gray-500 text-white';
   }
 }
 
 function getStatusLabel(status: string): string {
   switch (status) {
     case 'DRAFT':
-      return 'Rascunho';
+      return 'Processamento';
     case 'CONFIRMED':
-      return 'Confirmado';
+      return 'Entregue no Marketplace';
     case 'DELIVERED':
-      return 'Entregue';
+      return 'Finalizado';
     case 'CANCELLED':
       return 'Cancelado';
     default:
@@ -77,6 +79,19 @@ export function PurchasesList({
   onProductFilterChange,
   onStatusFilterChange,
 }: PurchasesListProps) {
+  const router = useRouter();
+
+  const handleViewInvoice = async (orderId: string, invoiceId: string) => {
+    try {
+      const response = await apiClient.get(`/orders/${orderId}/invoices/${invoiceId}/download`);
+      if (response.data?.url) {
+        window.open(response.data.url, '_blank');
+      }
+    } catch {
+      // silently fail
+    }
+  };
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Filters */}
@@ -156,7 +171,8 @@ export function PurchasesList({
               data.data.map((purchase: DashboardPurchase) => (
                 <tr
                   key={purchase.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  onClick={() => router.push(`/orders/${purchase.id}`)}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3 text-gray-900">
                     {formatDate(purchase.date)}
@@ -183,15 +199,22 @@ export function PurchasesList({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {purchase.invoiceId ? (
-                      <a
-                        href={`/api/invoices/${purchase.invoiceId}/download`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    {purchase.invoices && purchase.invoices.length > 0 ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewInvoice(purchase.id, purchase.invoices[0].id);
+                        }}
+                        className="inline-flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
+                        title={`Ver: ${purchase.invoices[0].filename}`}
                       >
-                        Baixar
-                      </a>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                        </svg>
+                        {purchase.invoices.length > 1 && (
+                          <span className="text-[10px] font-medium">{purchase.invoices.length}</span>
+                        )}
+                      </button>
                     ) : (
                       <span className="text-gray-400 text-xs">—</span>
                     )}

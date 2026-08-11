@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@compras-hub/db';
-import { DEFAULT_PAGE_SIZE } from '@compras-hub/shared';
+import { Prisma } from '@romaneio-hub/db';
+import { DEFAULT_PAGE_SIZE } from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
 
@@ -291,19 +291,18 @@ export class DashboardService {
     startDate: Date,
     endDate: Date,
   ): Promise<{ month: string; total: number }[]> {
-    // Use groupBy with date truncation via raw query for monthly aggregation
+    // Return each order as a data point (by date) for granular chart visualization
     const results = await this.prisma.$queryRaw<
       { month: string; total: number }[]
     >`
       SELECT 
-        TO_CHAR(date_trunc('month', date), 'YYYY-MM') as month,
-        COALESCE(SUM(total), 0)::float as total
+        TO_CHAR(date, 'YYYY-MM-DD') as month,
+        total::float as total
       FROM "Order"
       WHERE "tenantId" = ${tenantId}
         AND date >= ${startDate}
         AND date <= ${endDate}
-      GROUP BY date_trunc('month', date)
-      ORDER BY date_trunc('month', date) ASC
+      ORDER BY date ASC
     `;
 
     return results.map((r) => ({

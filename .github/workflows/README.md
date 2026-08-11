@@ -1,6 +1,6 @@
 # CI/CD Pipelines
 
-This directory contains the GitHub Actions workflows for ComprasHub.
+This directory contains the GitHub Actions workflows for RomaneioHub.
 
 ## Pipelines Overview
 

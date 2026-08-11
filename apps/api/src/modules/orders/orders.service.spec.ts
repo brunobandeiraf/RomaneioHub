@@ -3,7 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
-import { OrderStatus } from '@compras-hub/shared';
+import { OrderStatus } from '@romaneio-hub/shared';
 
 const mockOrder = (status: OrderStatus) => ({
   id: 'order-1',

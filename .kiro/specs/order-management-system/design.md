@@ -36,7 +36,7 @@ Este documento descreve a arquitetura técnica e o plano de implementação do S
 ### Monorepo Structure
 
 ```
-compras-hub/
+romaneio-hub/
 ├── apps/
 │   ├── web/                    # Next.js App Router + Tailwind CSS
 │   │   ├── src/

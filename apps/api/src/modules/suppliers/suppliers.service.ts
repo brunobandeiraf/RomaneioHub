@@ -4,11 +4,11 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@compras-hub/db';
+import { Prisma } from '@romaneio-hub/db';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
-import { DEFAULT_PAGE_SIZE, validateCnpj } from '@compras-hub/shared';
+import { DEFAULT_PAGE_SIZE, validateCnpj } from '@romaneio-hub/shared';
 
 export interface ListSuppliersParams {
   page?: number;

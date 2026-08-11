@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   CANCELLATION_GRACE_PERIOD_DAYS,
   SubscriptionStatus,
-} from '@compras-hub/shared';
+} from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma';
 import { NotificationService } from './notification.service';
 

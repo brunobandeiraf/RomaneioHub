@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@compras-hub/db';
+import { PrismaClient } from '@romaneio-hub/db';
 import { TenantContext } from './tenant-context';
 import { createTenantExtension } from './tenant.middleware';
 

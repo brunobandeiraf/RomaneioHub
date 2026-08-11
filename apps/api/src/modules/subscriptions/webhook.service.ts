@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PrismaService } from '../../prisma';
 import { StripeService } from './stripe.service';
-import { SubscriptionStatus, GRACE_PERIOD_DAYS } from '@compras-hub/shared';
+import { SubscriptionStatus, GRACE_PERIOD_DAYS } from '@romaneio-hub/shared';
 
 /**
  * Service responsible for processing Stripe webhook events and

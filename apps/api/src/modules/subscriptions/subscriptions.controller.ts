@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body } from '@nestjs/common';
-import { TenantRole } from '@compras-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 import { Roles, CurrentUser, SkipSubscriptionCheck } from '../../common/decorators';
 import { RequestUser } from '../../common/interfaces';
 import { SubscriptionsService } from './subscriptions.service';
@@ -20,7 +20,7 @@ export class SubscriptionsController {
     @Body() dto: CreateCheckoutDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.subscriptionsService.createCheckout(user.tenantId, dto.plan);
+    return this.subscriptionsService.createCheckout(user.tenantId, dto.planType);
   }
 
   /**

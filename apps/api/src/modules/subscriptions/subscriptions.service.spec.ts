@@ -5,7 +5,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { StripeService } from './stripe.service';
 import { PrismaService } from '../../prisma';
 import { SubscriptionPlan } from './dto/create-checkout.dto';
-import { SubscriptionStatus } from '@compras-hub/shared';
+import { SubscriptionStatus } from '@romaneio-hub/shared';
 
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;

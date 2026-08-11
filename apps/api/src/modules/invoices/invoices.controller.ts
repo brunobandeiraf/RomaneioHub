@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { TenantRole } from '@compras-hub/shared';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Query,
+  Res,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { TenantRole } from '@romaneio-hub/shared';
 import { Roles, CurrentUser } from '../../common/decorators';
 import { RequestUser } from '../../common/interfaces';
 import { InvoicesService } from './invoices.service';
@@ -12,9 +25,6 @@ export class InvoicesController {
 
   /**
    * Generate a presigned upload URL for an invoice file.
-   * Validates content type (PDF, PNG, JPG, JPEG) and size (≤10MB).
-   * Returns presigned PUT URL valid for 15 minutes.
-   * Roles: SELLER, ACCOUNTING_MANAGER
    */
   @Post('upload-url')
   @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER)
@@ -31,8 +41,38 @@ export class InvoicesController {
   }
 
   /**
+   * Direct file upload — accepts multipart/form-data.
+   * Uploads the file to S3 and registers the invoice in one step.
+   * Used in development (avoids CORS issues with presigned URLs).
+   */
+  @Post('upload')
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async uploadFile(
+    @Param('id') orderId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query('category') category: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Nenhum arquivo enviado');
+    }
+
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Tipo de arquivo não permitido. Use PDF, PNG ou JPG.');
+    }
+
+    return this.invoicesService.uploadDirect(
+      orderId,
+      file,
+      (category as any) || 'PURCHASE',
+      user.userId,
+    );
+  }
+
+  /**
    * Register an invoice record after successful upload.
-   * Roles: SELLER, ACCOUNTING_MANAGER
    */
   @Post()
   @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER)
@@ -46,7 +86,6 @@ export class InvoicesController {
 
   /**
    * List all invoices for an order.
-   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get()
   @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
@@ -55,8 +94,25 @@ export class InvoicesController {
   }
 
   /**
+   * View/stream an invoice file directly (proxy through backend).
+   * Opens the file inline in the browser.
+   */
+  @Get(':invoiceId/view')
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
+  async viewFile(
+    @Param('id') orderId: string,
+    @Param('invoiceId') invoiceId: string,
+    @Query('_') _cacheBuster: string,
+    @Res() res: any,
+  ) {
+    const { stream, contentType, filename } = await this.invoicesService.getFileStream(orderId, invoiceId);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    stream.pipe(res);
+  }
+
+  /**
    * Generate a presigned download URL for an invoice.
-   * Roles: SELLER, ACCOUNTING_MANAGER, ACCOUNTING_VIEWER
    */
   @Get(':invoiceId/download')
   @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER, TenantRole.ACCOUNTING_VIEWER)
@@ -65,5 +121,17 @@ export class InvoicesController {
     @Param('invoiceId') invoiceId: string,
   ) {
     return this.invoicesService.generateDownloadUrl(orderId, invoiceId);
+  }
+
+  /**
+   * Delete an invoice.
+   */
+  @Delete(':invoiceId')
+  @Roles(TenantRole.SELLER, TenantRole.ACCOUNTING_MANAGER)
+  async deleteInvoice(
+    @Param('id') orderId: string,
+    @Param('invoiceId') invoiceId: string,
+  ) {
+    return this.invoicesService.deleteInvoice(orderId, invoiceId);
   }
 }

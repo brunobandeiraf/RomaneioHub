@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { validatePasswordStrength } from '@compras-hub/shared';
-import { TenantRole } from '@compras-hub/shared';
+import { validatePasswordStrength } from '@romaneio-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma';
 import {
   CognitoService,

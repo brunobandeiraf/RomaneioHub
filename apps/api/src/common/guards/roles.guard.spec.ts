@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GlobalRole, TenantRole } from '@compras-hub/shared';
+import { GlobalRole, TenantRole } from '@romaneio-hub/shared';
 import { RolesGuard } from './roles.guard';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 

@@ -2,8 +2,6 @@
 
 import { useCallback, useState } from 'react';
 import { PeriodFilter } from '@/hooks/use-dashboard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 interface PeriodFilterProps {
   period: PeriodFilter;
@@ -31,76 +29,92 @@ export function PeriodFilterComponent({
   const [localEnd, setLocalEnd] = useState(endDate);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const validateAndApplyRange = useCallback(() => {
+  const handleStartChange = useCallback((value: string) => {
+    setLocalStart(value);
+    // If end date is before new start date, reset it
+    if (localEnd && value > localEnd) {
+      setLocalEnd(value);
+    }
+    setValidationError(null);
+  }, [localEnd]);
+
+  const handleEndChange = useCallback((value: string) => {
+    setLocalEnd(value);
+    setValidationError(null);
+  }, []);
+
+  const validateAndApply = useCallback(() => {
     if (!localStart || !localEnd) {
-      setValidationError('Selecione as datas de início e fim.');
+      setValidationError('Selecione as duas datas.');
       return;
     }
-
-    const start = new Date(localStart);
-    const end = new Date(localEnd);
-
-    if (start > end) {
-      setValidationError('A data de início deve ser anterior ou igual à data de fim.');
+    if (localStart > localEnd) {
+      setValidationError('Data final não pode ser anterior à inicial.');
       return;
     }
-
-    const diffMs = end.getTime() - start.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDays > 365) {
-      setValidationError('O período máximo permitido é de 365 dias.');
+    const diffMs = new Date(localEnd).getTime() - new Date(localStart).getTime();
+    if (diffMs / (1000 * 60 * 60 * 24) > 365) {
+      setValidationError('Período máximo: 365 dias.');
       return;
     }
-
     setValidationError(null);
     onDateRangeChange(localStart, localEnd);
   }, [localStart, localEnd, onDateRangeChange]);
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-      <div className="flex flex-wrap gap-2">
-        {PERIOD_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => {
-              setValidationError(null);
-              onPeriodChange(option.value);
-            }}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              period === option.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-            aria-pressed={period === option.value}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Period buttons */}
+      {PERIOD_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => {
+            setValidationError(null);
+            onPeriodChange(option.value);
+          }}
+          className={`rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+            period === option.value
+              ? 'bg-brand-gold text-brand-dark'
+              : 'bg-[#1a2a45] text-white hover:bg-[#243552]'
+          }`}
+          aria-pressed={period === option.value}
+        >
+          {option.label}
+        </button>
+      ))}
 
+      {/* Custom date range — inline, same height as buttons */}
       {period === 'custom' && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-          <Input
+        <>
+          <input
             type="date"
-            label="Início"
             value={localStart}
-            onChange={(e) => setLocalStart(e.target.value)}
+            onChange={(e) => handleStartChange(e.target.value)}
+            className="h-[34px] rounded-lg border border-brand-border bg-brand-dark/50 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-gold/50 w-[130px]"
+            aria-label="Data início"
           />
-          <Input
+          <span className="text-xs text-brand-muted">até</span>
+          <input
             type="date"
-            label="Fim"
             value={localEnd}
-            onChange={(e) => setLocalEnd(e.target.value)}
+            min={localStart || undefined}
+            onChange={(e) => handleEndChange(e.target.value)}
+            className="h-[34px] rounded-lg border border-brand-border bg-brand-dark/50 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-gold/50 w-[130px]"
+            aria-label="Data fim"
           />
-          <Button size="sm" onClick={validateAndApplyRange}>
+          <button
+            type="button"
+            onClick={validateAndApply}
+            className="h-[34px] rounded-lg bg-brand-gold px-3 text-xs font-medium text-brand-dark hover:bg-brand-gold-hover transition-all"
+          >
             Aplicar
-          </Button>
-        </div>
+          </button>
+        </>
       )}
 
+      {/* Validation error */}
       {validationError && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="w-full text-xs text-red-400 mt-1" role="alert">
           {validationError}
         </p>
       )}

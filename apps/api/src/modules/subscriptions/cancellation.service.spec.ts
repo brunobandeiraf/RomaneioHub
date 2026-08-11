@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CancellationService } from './cancellation.service';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../../prisma';
-import { CANCELLATION_GRACE_PERIOD_DAYS, SubscriptionStatus } from '@compras-hub/shared';
+import { CANCELLATION_GRACE_PERIOD_DAYS, SubscriptionStatus } from '@romaneio-hub/shared';
 
 describe('CancellationService', () => {
   let service: CancellationService;

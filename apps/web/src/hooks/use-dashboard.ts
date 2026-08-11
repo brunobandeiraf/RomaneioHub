@@ -35,6 +35,7 @@ export interface DashboardPurchase {
   amount: number;
   status: string;
   invoiceId?: string;
+  invoices: { id: string; filename: string }[];
 }
 
 export interface PurchasesResponse {
@@ -83,12 +84,12 @@ export function useDashboardPurchases(params: PurchasesParams) {
       const queryParams: Record<string, string | number> = {
         period: params.period,
         page: params.page || 1,
-        pageSize: params.pageSize || 20,
+        limit: params.pageSize || 20,
       };
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;
-      if (params.supplier) queryParams.supplier = params.supplier;
-      if (params.product) queryParams.product = params.product;
+      if (params.supplier) queryParams.supplierId = params.supplier;
+      if (params.product) queryParams.productId = params.product;
       if (params.status) queryParams.status = params.status;
 
       const response = await apiClient.get('/dashboard/purchases', {
@@ -108,8 +109,8 @@ export function useExportCsv() {
       };
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;
-      if (params.supplier) queryParams.supplier = params.supplier;
-      if (params.product) queryParams.product = params.product;
+      if (params.supplier) queryParams.supplierId = params.supplier;
+      if (params.product) queryParams.productId = params.product;
       if (params.status) queryParams.status = params.status;
 
       const response = await apiClient.get('/dashboard/export', {

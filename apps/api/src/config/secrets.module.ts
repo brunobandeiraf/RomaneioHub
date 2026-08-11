@@ -1,4 +1,5 @@
 import { Global, Module, OnModuleInit } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { SecretsService } from './secrets.service';
 
 /**
@@ -10,6 +11,7 @@ import { SecretsService } from './secrets.service';
  */
 @Global()
 @Module({
+  imports: [ConfigModule],
   providers: [SecretsService],
   exports: [SecretsService],
 })

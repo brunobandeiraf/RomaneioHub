@@ -1,11 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@compras-hub/db';
+import { Prisma } from '@romaneio-hub/db';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AddProductSupplierDto } from './dto/add-product-supplier.dto';
 import { UpdateProductSupplierDto } from './dto/update-product-supplier.dto';
-import { DEFAULT_PAGE_SIZE } from '@compras-hub/shared';
+import { DEFAULT_PAGE_SIZE } from '@romaneio-hub/shared';
 
 export interface ListProductsParams {
   page?: number;

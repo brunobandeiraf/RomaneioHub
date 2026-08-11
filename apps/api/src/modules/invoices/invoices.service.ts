@@ -9,7 +9,7 @@ import {
   MAX_INVOICE_FILE_SIZE,
   MAX_INVOICES_PER_ORDER,
   PRESIGNED_URL_EXPIRY_SECONDS,
-} from '@compras-hub/shared';
+} from '@romaneio-hub/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TenantContext } from '../../prisma/tenant-context';
 import { S3Service } from './s3.service';
@@ -114,6 +114,7 @@ export class InvoicesService {
         contentType: dto.contentType,
         sizeBytes: dto.sizeBytes,
         uploadedById: userId,
+        category: dto.category || 'PURCHASE',
       },
     });
 
@@ -166,5 +167,127 @@ export class InvoicesService {
     );
 
     return { url, filename: invoice.filename, expiresIn: PRESIGNED_URL_EXPIRY_SECONDS };
+  }
+
+  /**
+   * Upload a file directly through the backend to S3 and register the invoice.
+   * If a file with the same name and category already exists, it will be replaced.
+   */
+  async uploadDirect(
+    orderId: string,
+    file: Express.Multer.File,
+    category: string,
+    userId: string,
+  ) {
+    // Verify order exists within tenant scope
+    const order = await this.prisma.extended.order.findFirst({
+      where: { id: orderId },
+      include: { _count: { select: { invoices: true } } },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const tenantId = this.tenantContext.getTenantId();
+    const s3Key = `${INVOICE_S3_KEY_PREFIX}/${tenantId}/${orderId}/${file.originalname}`;
+
+    // Check if file with same name + category already exists — replace it
+    const existing = await this.prisma.invoice.findFirst({
+      where: {
+        orderId,
+        filename: file.originalname,
+        category: category as any,
+      },
+    });
+
+    if (existing) {
+      // Delete old record (S3 will be overwritten)
+      await this.prisma.invoice.delete({ where: { id: existing.id } });
+    } else {
+      // Check max limit only for new files
+      if (order._count.invoices >= MAX_INVOICES_PER_ORDER) {
+        throw new BadRequestException(
+          `Máximo de ${MAX_INVOICES_PER_ORDER} arquivos por pedido`,
+        );
+      }
+    }
+
+    // Upload to S3
+    await this.s3Service.uploadFile(s3Key, file.buffer, file.mimetype);
+
+    // Register in database
+    const invoice = await this.prisma.invoice.create({
+      data: {
+        orderId,
+        filename: file.originalname,
+        s3Key,
+        contentType: file.mimetype,
+        sizeBytes: file.size,
+        uploadedById: userId,
+        category: category || 'PURCHASE',
+      },
+    });
+
+    return invoice;
+  }
+
+  /**
+   * Get file stream for viewing in the browser.
+   */
+  async getFileStream(orderId: string, invoiceId: string) {
+    const order = await this.prisma.extended.order.findFirst({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, orderId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    const stream = await this.s3Service.getFileStream(invoice.s3Key);
+
+    return {
+      stream,
+      contentType: invoice.contentType,
+      filename: invoice.filename,
+    };
+  }
+
+  /**
+   * Delete an invoice record and its S3 file.
+   */
+  async deleteInvoice(orderId: string, invoiceId: string) {
+    // Verify order exists within tenant scope
+    const order = await this.prisma.extended.order.findFirst({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, orderId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Delete from S3
+    await this.s3Service.deleteFile(invoice.s3Key);
+
+    // Delete from database
+    await this.prisma.invoice.delete({ where: { id: invoiceId } });
+
+    return { deleted: true };
   }
 }

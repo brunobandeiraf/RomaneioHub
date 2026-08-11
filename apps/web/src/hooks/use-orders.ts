@@ -193,7 +193,7 @@ export function useUpdateOrderItem(orderId: string) {
   return useMutation<
     unknown,
     AxiosError<ApiError>,
-    { itemId: string; productId: string; quantidade: number; precoUnit: number }
+    { itemId: string; quantidade: number; precoUnit: number }
   >({
     mutationFn: async ({ itemId, ...data }) => {
       const response = await apiClient.patch(

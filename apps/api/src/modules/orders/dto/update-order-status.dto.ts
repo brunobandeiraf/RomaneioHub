@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { OrderStatus } from '@compras-hub/shared';
+import { OrderStatus } from '@romaneio-hub/shared';
 
 export class UpdateOrderStatusDto {
   @IsEnum(OrderStatus, {

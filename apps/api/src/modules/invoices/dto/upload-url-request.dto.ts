@@ -2,7 +2,7 @@ import { IsString, IsNumber, Max, IsIn } from 'class-validator';
 import {
   ALLOWED_INVOICE_CONTENT_TYPES,
   MAX_INVOICE_FILE_SIZE,
-} from '@compras-hub/shared';
+} from '@romaneio-hub/shared';
 
 export class UploadUrlRequestDto {
   @IsString()

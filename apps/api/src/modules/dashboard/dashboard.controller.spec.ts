@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { RequestUser } from '../../common/interfaces';
-import { GlobalRole, TenantRole } from '@compras-hub/shared';
+import { GlobalRole, TenantRole } from '@romaneio-hub/shared';
 import { DashboardPeriod } from './dto/query-dashboard.dto';
 
 describe('DashboardController', () => {

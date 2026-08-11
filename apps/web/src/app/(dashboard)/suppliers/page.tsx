@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
-import { formatCnpj } from '@compras-hub/shared';
+import { formatCnpj } from '@romaneio-hub/shared';
 import { useSuppliers, useDeleteSupplier, Supplier } from './hooks/use-suppliers';
 
 export default function SuppliersPage() {

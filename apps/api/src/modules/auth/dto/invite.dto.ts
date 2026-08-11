@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
-import { TenantRole } from '@compras-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 
 export class InviteDto {
   @IsEmail({}, { message: 'Email must be a valid email address' })

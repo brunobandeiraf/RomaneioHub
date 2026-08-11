@@ -1,5 +1,5 @@
-import { Prisma } from '@compras-hub/db';
-import { TENANT_SCOPED_MODELS } from '@compras-hub/shared';
+import { Prisma } from '@romaneio-hub/db';
+import { TENANT_SCOPED_MODELS } from '@romaneio-hub/shared';
 import { TenantContext } from './tenant-context';
 
 /**

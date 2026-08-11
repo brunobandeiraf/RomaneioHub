@@ -3,7 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
 import { StripeService } from './stripe.service';
 import { PrismaService } from '../../prisma';
-import { SubscriptionStatus, GRACE_PERIOD_DAYS } from '@compras-hub/shared';
+import { SubscriptionStatus, GRACE_PERIOD_DAYS } from '@romaneio-hub/shared';
 import Stripe from 'stripe';
 
 describe('WebhookService', () => {

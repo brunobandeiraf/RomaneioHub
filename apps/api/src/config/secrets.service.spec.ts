@@ -36,7 +36,7 @@ describe('SecretsService', () => {
               const config: Record<string, string> = {
                 AWS_REGION: 'us-east-1',
                 NODE_ENV: 'production',
-                AWS_SECRET_NAME: 'compras-hub/production',
+                AWS_SECRET_NAME: 'romaneio-hub/production',
               };
               return config[key] ?? defaultValue;
             }),
@@ -108,7 +108,7 @@ describe('SecretsService', () => {
       });
 
       await expect(service.loadSecrets()).rejects.toThrow(
-        'Secret "compras-hub/production" has no SecretString value',
+        'Secret "romaneio-hub/production" has no SecretString value',
       );
     });
 

@@ -40,7 +40,7 @@ export class SubscriptionsService {
     if (!stripeCustomerId) {
       const sellerUser = tenant.users[0]?.user;
       const customer = await this.stripeService.createCustomer(
-        sellerUser?.email || `tenant-${tenantId}@compras-hub.com`,
+        sellerUser?.email || `tenant-${tenantId}@romaneio-hub.com`,
         tenant.name,
       );
       stripeCustomerId = customer.id;
@@ -133,15 +133,27 @@ export class SubscriptionsService {
    * Resolves the Stripe Price ID for the given plan from environment variables.
    */
   private getPriceId(plan: SubscriptionPlan): string {
-    if (plan === SubscriptionPlan.MONTHLY) {
-      return this.configService.get<string>(
-        'STRIPE_MONTHLY_PRICE_ID',
-        'price_monthly_placeholder',
-      );
+    switch (plan) {
+      case SubscriptionPlan.MONTHLY:
+        return this.configService.get<string>(
+          'STRIPE_MONTHLY_PRICE_ID',
+          'price_monthly_placeholder',
+        );
+      case SubscriptionPlan.SEMIANNUAL:
+        return this.configService.get<string>(
+          'STRIPE_SEMIANNUAL_PRICE_ID',
+          'price_semiannual_placeholder',
+        );
+      case SubscriptionPlan.ANNUAL:
+        return this.configService.get<string>(
+          'STRIPE_ANNUAL_PRICE_ID',
+          'price_annual_placeholder',
+        );
+      default:
+        return this.configService.get<string>(
+          'STRIPE_MONTHLY_PRICE_ID',
+          'price_monthly_placeholder',
+        );
     }
-    return this.configService.get<string>(
-      'STRIPE_ANNUAL_PRICE_ID',
-      'price_annual_placeholder',
-    );
   }
 }

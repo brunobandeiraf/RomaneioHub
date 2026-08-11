@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.8
     container_name: comprashub-localstack
     environment:
       SERVICES: s3

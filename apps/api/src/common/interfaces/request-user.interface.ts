@@ -1,4 +1,4 @@
-import { GlobalRole, TenantRole } from '@compras-hub/shared';
+import { GlobalRole, TenantRole } from '@romaneio-hub/shared';
 
 export interface RequestUser {
   userId: string;

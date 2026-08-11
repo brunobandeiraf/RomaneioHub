@@ -45,7 +45,7 @@ export class SecretsService {
 
     const secretName = this.configService.get<string>(
       'AWS_SECRET_NAME',
-      'compras-hub/production',
+      'romaneio-hub/production',
     );
 
     this.logger.log(

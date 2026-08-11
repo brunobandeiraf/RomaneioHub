@@ -1,6 +1,6 @@
-# ComprasHub Infrastructure
+# RomaneioHub Infrastructure
 
-Terraform modules and environment configurations for the ComprasHub platform.
+Terraform modules and environment configurations for the RomaneioHub platform.
 
 ## Structure
 
@@ -25,21 +25,21 @@ infra/
 
 - Terraform >= 1.5.0
 - AWS CLI configured with appropriate credentials
-- S3 bucket for state: `compras-hub-terraform-state`
-- DynamoDB table for locks: `compras-hub-terraform-locks`
+- S3 bucket for state: `romaneio-hub-terraform-state`
+- DynamoDB table for locks: `romaneio-hub-terraform-locks`
 
 ## Bootstrap State Backend
 
 Before deploying any environment, create the state backend:
 
 ```bash
-aws s3 mb s3://compras-hub-terraform-state --region us-east-1
+aws s3 mb s3://romaneio-hub-terraform-state --region us-east-1
 aws s3api put-bucket-versioning \
-  --bucket compras-hub-terraform-state \
+  --bucket romaneio-hub-terraform-state \
   --versioning-configuration Status=Enabled
 
 aws dynamodb create-table \
-  --table-name compras-hub-terraform-locks \
+  --table-name romaneio-hub-terraform-locks \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \
@@ -109,6 +109,6 @@ terraform apply -var-file=terraform.tfvars.local
 ## Tags
 
 All resources are tagged with:
-- `project`: compras-hub
+- `project`: romaneio-hub
 - `env`: dev / staging / prod
 - `managed_by`: terraform

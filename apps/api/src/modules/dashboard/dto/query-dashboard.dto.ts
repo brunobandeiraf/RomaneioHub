@@ -6,7 +6,7 @@ import {
   IsOptional,
   IsUUID,
 } from 'class-validator';
-import { OrderStatus } from '@compras-hub/shared';
+import { OrderStatus } from '@romaneio-hub/shared';
 
 export enum DashboardPeriod {
   CURRENT_MONTH = 'current_month',

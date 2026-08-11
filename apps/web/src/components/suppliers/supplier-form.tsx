@@ -4,7 +4,7 @@ import { FormEvent, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CnpjInput } from '@/components/ui/cnpj-input';
-import { validateCnpj } from '@compras-hub/shared';
+import { validateCnpj } from '@romaneio-hub/shared';
 
 export interface SupplierFormData {
   razaoSocial: string;

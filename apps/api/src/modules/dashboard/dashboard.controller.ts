@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { TenantRole } from '@compras-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 import { CurrentUser, Roles, SkipSubscriptionCheck } from '../../common/decorators';
 import { RequestUser } from '../../common/interfaces';
 import { DashboardService } from './dashboard.service';

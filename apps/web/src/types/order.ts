@@ -91,24 +91,32 @@ export interface Product {
   active: boolean;
 }
 
-// Valid status transitions
+// Valid status transitions — allow any change
 export const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  DRAFT: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['DELIVERED', 'CANCELLED'],
-  DELIVERED: [],
-  CANCELLED: [],
+  DRAFT: ['CONFIRMED', 'DELIVERED', 'CANCELLED'],
+  CONFIRMED: ['DRAFT', 'DELIVERED', 'CANCELLED'],
+  DELIVERED: ['DRAFT', 'CONFIRMED', 'CANCELLED'],
+  CANCELLED: ['DRAFT', 'CONFIRMED', 'DELIVERED'],
 };
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
-  DRAFT: 'Rascunho',
-  CONFIRMED: 'Confirmado',
-  DELIVERED: 'Entregue',
+  DRAFT: 'Processamento',
+  CONFIRMED: 'Entregue no Marketplace',
+  DELIVERED: 'Finalizado',
   CANCELLED: 'Cancelado',
 };
 
 export const STATUS_COLORS: Record<OrderStatus, string> = {
-  DRAFT: 'bg-gray-100 text-gray-800',
-  CONFIRMED: 'bg-blue-100 text-blue-800',
-  DELIVERED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  DRAFT: 'bg-amber-500 text-white',
+  CONFIRMED: 'bg-blue-500 text-white',
+  DELIVERED: 'bg-emerald-700 text-white',
+  CANCELLED: 'bg-red-500 text-white',
+};
+
+// Button colors for status change actions
+export const STATUS_BUTTON_COLORS: Record<OrderStatus, string> = {
+  DRAFT: 'bg-amber-500 hover:bg-amber-600 text-white',
+  CONFIRMED: 'bg-blue-500 hover:bg-blue-600 text-white',
+  DELIVERED: 'bg-emerald-500 hover:bg-emerald-600 text-white',
+  CANCELLED: 'bg-red-500 hover:bg-red-600 text-white',
 };

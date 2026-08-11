@@ -11,7 +11,7 @@ import {
   CognitoUserNotConfirmedError,
 } from './cognito.service';
 import { PrismaService } from '../../prisma';
-import { TenantRole } from '@compras-hub/shared';
+import { TenantRole } from '@romaneio-hub/shared';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -85,15 +85,50 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw ConflictException when email already exists', async () => {
+    it('should create user, tenant, and userTenant with PENDING status', async () => {
+      cognitoService.signUp.mockResolvedValue({
+        userSub: 'cognito-sub-123',
+        codeDeliveryDestination: 's***@example.com',
+      });
+      prismaService.tenant.create.mockResolvedValue({ id: 'tenant-1', name: 'Seller Inc.' });
+      prismaService.user.create.mockResolvedValue({ id: 'user-1', email: 'seller@example.com' });
+      prismaService.userTenant.create.mockResolvedValue({});
+
+      await service.register(validDto);
+
+      expect(prismaService.tenant.create).toHaveBeenCalledWith({
+        data: { name: validDto.companyName },
+      });
+      expect(prismaService.user.create).toHaveBeenCalledWith({
+        data: {
+          cognitoSub: 'cognito-sub-123',
+          email: validDto.email,
+          name: validDto.name,
+          globalRole: 'SELLER',
+        },
+      });
+      expect(prismaService.userTenant.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          role: 'SELLER',
+          status: 'PENDING',
+        },
+      });
+    });
+
+    it('should throw ConflictException with correct message when email already exists', async () => {
       cognitoService.signUp.mockRejectedValue(
         new CognitoEmailAlreadyExistsError('Email exists'),
       );
 
       await expect(service.register(validDto)).rejects.toThrow(ConflictException);
+      await expect(service.register(validDto)).rejects.toThrow(
+        'An account with this email already exists',
+      );
     });
 
-    it('should throw BadRequestException for weak password', async () => {
+    it('should throw BadRequestException for weak password (too short)', async () => {
       const weakDto = { ...validDto, password: 'weak' };
 
       await expect(service.register(weakDto)).rejects.toThrow(BadRequestException);
@@ -104,12 +139,28 @@ describe('AuthService', () => {
       const dto = { ...validDto, password: 'nouppercas3!' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.signUp).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for password without lowercase', async () => {
+      const dto = { ...validDto, password: 'NOLOWERCASE3!' };
+
+      await expect(service.register(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.signUp).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for password without number', async () => {
+      const dto = { ...validDto, password: 'NoNumberHere!' };
+
+      await expect(service.register(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.signUp).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for password without special character', async () => {
       const dto = { ...validDto, password: 'NoSpecial1A' };
 
       await expect(service.register(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.signUp).not.toHaveBeenCalled();
     });
   });
 
@@ -192,7 +243,7 @@ describe('AuthService', () => {
   });
 
   describe('forgotPassword', () => {
-    it('should return a generic message regardless of email existence', async () => {
+    it('should always return success message regardless of email existence (requirement 2.8)', async () => {
       cognitoService.forgotPassword.mockResolvedValue(undefined);
 
       const result = await service.forgotPassword({ email: 'unknown@example.com' });
@@ -201,13 +252,21 @@ describe('AuthService', () => {
       expect(cognitoService.forgotPassword).toHaveBeenCalledWith('unknown@example.com');
     });
 
-    it('should return same message when email exists', async () => {
+    it('should return same generic message when email actually exists', async () => {
       cognitoService.forgotPassword.mockResolvedValue('s***@example.com');
 
       const result = await service.forgotPassword({ email: 'seller@example.com' });
 
       expect(result.message).toContain('If an account with this email exists');
       expect(cognitoService.forgotPassword).toHaveBeenCalledWith('seller@example.com');
+    });
+
+    it('should not throw error if cognito forgotPassword fails silently', async () => {
+      cognitoService.forgotPassword.mockResolvedValue(undefined);
+
+      const result = await service.forgotPassword({ email: 'nonexistent@example.com' });
+
+      expect(result.message).toBeDefined();
     });
   });
 
@@ -240,6 +299,20 @@ describe('AuthService', () => {
 
     it('should throw BadRequestException for password without uppercase', async () => {
       const dto = { ...resetDto, newPassword: 'nouppercase1!' };
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for password without lowercase', async () => {
+      const dto = { ...resetDto, newPassword: 'NOLOWERCASE1!' };
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
+      expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException for password without number', async () => {
+      const dto = { ...resetDto, newPassword: 'NoNumberHere!' };
 
       await expect(service.resetPassword(dto)).rejects.toThrow(BadRequestException);
       expect(cognitoService.confirmForgotPassword).not.toHaveBeenCalled();

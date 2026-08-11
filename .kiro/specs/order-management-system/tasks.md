@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders, suppliers, products, and invoices. The system uses a Turborepo monorepo with Next.js frontend, NestJS backend (Lambda), Prisma + PostgreSQL, and AWS infrastructure. Implementation follows an incremental approach: project scaffolding → shared packages → backend guards & middleware → feature modules → frontend pages → infrastructure.
+Implement a multi-tenant SaaS platform (RomaneioHub) for managing purchase orders, suppliers, products, and invoices. The system uses a Turborepo monorepo with Next.js frontend, NestJS backend (Lambda), Prisma + PostgreSQL, and AWS infrastructure. Implementation follows an incremental approach: project scaffolding → shared packages → backend guards & middleware → feature modules → frontend pages → infrastructure.
 
 ## Tasks
 
@@ -71,17 +71,17 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Ensure AuditLog records are immutable (no update/delete endpoints)
     - _Requirements: 11.2, 11.3, 11.4, 11.6_
 
-  - [ ]* 2.7 Write property test for tenant data isolation (Property 2)
+  - [x]* 2.7 Write property test for tenant data isolation (Property 2)
     - **Property 2: Tenant Data Isolation**
     - For any query executed by user U belonging to tenant T, no records from tenant T' (where T ≠ T') are returned
     - **Validates: Requirements 9.3, 9.4**
 
-  - [ ]* 2.8 Write property test for role-based write access enforcement (Property 6)
+  - [x]* 2.8 Write property test for role-based write access enforcement (Property 6)
     - **Property 6: Role-Based Write Access Enforcement**
     - For any user with Accounting_Viewer role, all POST/PATCH/PUT/DELETE requests to CRUD endpoints return 403 Forbidden
     - **Validates: Requirements 1.5**
 
-  - [ ]* 2.9 Write property test for subscription guard write block (Property 9)
+  - [x]* 2.9 Write property test for subscription guard write block (Property 9)
     - **Property 9: Subscription Guard Write Block**
     - While a tenant's subscription status is GRACE_PERIOD or BLOCKED, all write operations return an error response, but read operations succeed
     - **Validates: Requirements 3.5, 14.2**
@@ -108,7 +108,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Return error for expired/used invitation links
     - _Requirements: 2.4, 1.6, 2.9_
 
-  - [ ]* 3.4 Write unit tests for auth module
+  - [x]* 3.4 Write unit tests for auth module
     - Test registration with duplicate email (requirement 2.7)
     - Test password validation against policy
     - Test invitation link expiration handling
@@ -124,12 +124,12 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Record audit trail fields (createdAt, updatedAt, createdById, updatedById)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-  - [ ]* 4.2 Write property test for CNPJ uniqueness per tenant (Property 3)
+  - [x]* 4.2 Write property test for CNPJ uniqueness per tenant (Property 3)
     - **Property 3: CNPJ Uniqueness Per Tenant**
     - For any tenant, no two active suppliers share the same CNPJ; different tenants may have suppliers with the same CNPJ
     - **Validates: Requirements 4.2**
 
-  - [ ]* 4.3 Write property test for soft delete integrity (Property 4)
+  - [x]* 4.3 Write property test for soft delete integrity (Property 4)
     - **Property 4: Soft Delete Integrity**
     - For any supplier or product with at least one linked order, a delete operation results in inactivation (active=false) and never physical removal
     - **Validates: Requirements 4.3, 5.3**
@@ -151,7 +151,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Validate price range Decimal(12,2) 0.01–9999999999.99
     - _Requirements: 5.2_
 
-  - [ ]* 5.3 Write unit tests for products module
+  - [x]* 5.3 Write unit tests for products module
     - Test field validation boundaries
     - Test soft-delete vs hard-delete logic
     - Test product-supplier price association
@@ -183,12 +183,12 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Return error with current status and attempted transition on invalid transitions
     - _Requirements: 6.6, 6.7_
 
-  - [ ]* 7.4 Write property test for order total calculation integrity (Property 1)
+  - [x]* 7.4 Write property test for order total calculation integrity (Property 1)
     - **Property 1: Order Total Calculation Integrity**
     - For all valid orders, the order total equals the sum of (quantidade × precoUnit) for each item
     - **Validates: Requirements 6.2**
 
-  - [ ]* 7.5 Write property test for audit trail completeness (Property 7)
+  - [x]* 7.5 Write property test for audit trail completeness (Property 7)
     - **Property 7: Audit Trail Completeness**
     - For any create or update on Supplier, Product, or Order, the resulting record has non-null created_at, updated_at, and responsible_user_id where updated_at >= created_at
     - **Validates: Requirements 11.1, 11.2, 11.3**
@@ -203,7 +203,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Enforce max 10 invoices per order
     - _Requirements: 6.4, 7.1, 7.2, 7.4, 7.5, 7.6, 7.7_
 
-  - [ ]* 8.2 Write property test for presigned URL security (Property 8)
+  - [x]* 8.2 Write property test for presigned URL security (Property 8)
     - **Property 8: Presigned URL Security**
     - For any generated presigned URL, the S3 key follows the pattern notas-fiscais/{tenant_id}/{pedido_id}/{filename} where tenant_id matches the requesting user's tenant
     - **Validates: Requirements 7.1, 7.2**
@@ -232,7 +232,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Restore full access within 5 minutes on renewal during Grace_Period
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-  - [ ]* 9.4 Write property test for subscription state machine consistency (Property 5)
+  - [x]* 9.4 Write property test for subscription state machine consistency (Property 5)
     - **Property 5: Subscription State Machine Consistency**
     - Subscription status transitions follow valid paths: TRIAL→ACTIVE, ACTIVE→PAST_DUE, PAST_DUE→GRACE_PERIOD, GRACE_PERIOD→BLOCKED, any→CANCELLED, GRACE_PERIOD→ACTIVE
     - **Validates: Requirements 3.4, 3.5, 3.6**
@@ -255,7 +255,7 @@ Implement a multi-tenant SaaS platform (ComprasHub) for managing purchase orders
     - Ensure export works during GRACE_PERIOD and BLOCKED statuses
     - _Requirements: 8.7, 14.2_
 
-  - [ ]* 11.3 Write property test for dashboard data consistency (Property 10)
+  - [x]* 11.3 Write property test for dashboard data consistency (Property 10)
     - **Property 10: Dashboard Data Consistency**
     - The total amount spent reported by the dashboard equals the sum of all order totals within the selected date range for the tenant
     - **Validates: Requirements 8.4**
